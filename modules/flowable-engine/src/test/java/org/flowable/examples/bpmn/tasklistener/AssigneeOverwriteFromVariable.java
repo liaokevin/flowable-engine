@@ -16,7 +16,7 @@ import java.util.Map;
 
 import org.flowable.engine.delegate.TaskListener;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
-import org.flowable.engine.impl.util.ExecutionHelper;
+import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.task.service.delegate.DelegateTask;
 
 /**
@@ -24,10 +24,12 @@ import org.flowable.task.service.delegate.DelegateTask;
  */
 public class AssigneeOverwriteFromVariable implements TaskListener {
 
+    @Override
     @SuppressWarnings("unchecked")
     public void notify(DelegateTask delegateTask) {
         // get mapping table from variable
-        ExecutionEntity execution = ExecutionHelper.getExecution(delegateTask.getExecutionId());
+
+        ExecutionEntity execution = CommandContextUtil.getExecutionEntityManager().findById(delegateTask.getExecutionId());
         Map<String, String> assigneeMappingTable = (Map<String, String>) execution.getVariable("assigneeMappingTable");
 
         // get assignee from process

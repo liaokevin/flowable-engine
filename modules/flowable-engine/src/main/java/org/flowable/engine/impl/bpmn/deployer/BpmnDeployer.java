@@ -27,15 +27,19 @@ import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.SubProcess;
 import org.flowable.bpmn.model.UserTask;
 import org.flowable.bpmn.model.ValuedDataObject;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.common.engine.api.repository.EngineDeployment;
+import org.flowable.common.engine.api.repository.EngineResource;
+import org.flowable.common.engine.impl.EngineDeployer;
+import org.flowable.common.engine.impl.cfg.IdGenerator;
+import org.flowable.common.engine.impl.context.Context;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.DynamicBpmnConstants;
 import org.flowable.engine.DynamicBpmnService;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.impl.cfg.IdGenerator;
-import org.flowable.engine.common.impl.context.Context;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
 import org.flowable.engine.delegate.event.impl.FlowableEventBuilder;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
-import org.flowable.engine.impl.persistence.deploy.Deployer;
+import org.flowable.engine.impl.cmd.DeploymentSettings;
 import org.flowable.engine.impl.persistence.entity.DeploymentEntity;
 import org.flowable.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.flowable.engine.impl.persistence.entity.ProcessDefinitionEntityManager;
@@ -52,7 +56,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * @author Joram Barrez
  * @author Tijs Rademakers
  */
-public class BpmnDeployer implements Deployer {
+public class BpmnDeployer implements EngineDeployer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BpmnDeployer.class);
 
@@ -61,9 +65,10 @@ public class BpmnDeployer implements Deployer {
     protected BpmnDeploymentHelper bpmnDeploymentHelper;
     protected CachingAndArtifactsManager cachingAndArtifactsManager;
     protected ProcessDefinitionDiagramHelper processDefinitionDiagramHelper;
+    protected boolean usePrefixId;
 
     @Override
-    public void deploy(DeploymentEntity deployment, Map<String, Object> deploymentSettings) {
+    public void deploy(EngineDeployment deployment, Map<String, Object> deploymentSettings) {
         LOGGER.debug("Processing deployment {}", deployment.getName());
 
         // The ParsedDeployment represents the deployment, the process definitions, and the BPMN
@@ -82,10 +87,19 @@ public class BpmnDeployer implements Deployer {
         setProcessDefinitionDiagramNames(parsedDeployment);
 
         if (deployment.isNew()) {
-            Map<ProcessDefinitionEntity, ProcessDefinitionEntity> mapOfNewProcessDefinitionToPreviousVersion = getPreviousVersionsOfProcessDefinitions(parsedDeployment);
-            setProcessDefinitionVersionsAndIds(parsedDeployment, mapOfNewProcessDefinitionToPreviousVersion);
-            persistProcessDefinitionsAndAuthorizations(parsedDeployment);
-            updateTimersAndEvents(parsedDeployment, mapOfNewProcessDefinitionToPreviousVersion);
+            if (!deploymentSettings.containsKey(DeploymentSettings.IS_DERIVED_DEPLOYMENT)) {
+                Map<ProcessDefinitionEntity, ProcessDefinitionEntity> mapOfNewProcessDefinitionToPreviousVersion = getPreviousVersionsOfProcessDefinitions(parsedDeployment);
+                setProcessDefinitionVersionsAndIds(parsedDeployment, mapOfNewProcessDefinitionToPreviousVersion);
+                persistProcessDefinitionsAndAuthorizations(parsedDeployment);
+                updateTimersAndEvents(parsedDeployment, mapOfNewProcessDefinitionToPreviousVersion);
+
+            } else {
+                Map<ProcessDefinitionEntity, ProcessDefinitionEntity> mapOfNewProcessDefinitionToPreviousDerivedVersion = 
+                                getPreviousDerivedFromVersionsOfProcessDefinitions(parsedDeployment);
+                setDerivedProcessDefinitionVersionsAndIds(parsedDeployment, mapOfNewProcessDefinitionToPreviousDerivedVersion, deploymentSettings);
+                persistProcessDefinitionsAndAuthorizations(parsedDeployment);
+            }
+          
         } else {
             makeProcessDefinitionsConsistentWithPersistedVersions(parsedDeployment);
         }
@@ -131,7 +145,7 @@ public class BpmnDeployer implements Deployer {
      * have their resources attached to the deployment.
      */
     protected void setProcessDefinitionDiagramNames(ParsedDeployment parsedDeployment) {
-        Map<String, ResourceEntity> resources = parsedDeployment.getDeployment().getResources();
+        Map<String, EngineResource> resources = parsedDeployment.getDeployment().getResources();
 
         for (ProcessDefinitionEntity processDefinition : parsedDeployment.getAllProcessDefinitions()) {
             String diagramResourceName = ResourceNameUtil.getProcessDiagramResourceNameFromDeployment(processDefinition, resources);
@@ -149,6 +163,25 @@ public class BpmnDeployer implements Deployer {
 
         for (ProcessDefinitionEntity newDefinition : parsedDeployment.getAllProcessDefinitions()) {
             ProcessDefinitionEntity existingDefinition = bpmnDeploymentHelper.getMostRecentVersionOfProcessDefinition(newDefinition);
+
+            if (existingDefinition != null) {
+                result.put(newDefinition, existingDefinition);
+            }
+        }
+
+        return result;
+    }
+    
+    /**
+     * Constructs a map from new ProcessDefinitionEntities to the previous derived from version by key and tenant. If no previous version exists, no map entry is created.
+     */
+    protected Map<ProcessDefinitionEntity, ProcessDefinitionEntity> getPreviousDerivedFromVersionsOfProcessDefinitions(
+            ParsedDeployment parsedDeployment) {
+
+        Map<ProcessDefinitionEntity, ProcessDefinitionEntity> result = new LinkedHashMap<>();
+
+        for (ProcessDefinitionEntity newDefinition : parsedDeployment.getAllProcessDefinitions()) {
+            ProcessDefinitionEntity existingDefinition = bpmnDeploymentHelper.getMostRecentDerivedVersionOfProcessDefinition(newDefinition);
 
             if (existingDefinition != null) {
                 result.put(newDefinition, existingDefinition);
@@ -187,8 +220,53 @@ public class BpmnDeployer implements Deployer {
 
             cachingAndArtifactsManager.updateProcessDefinitionCache(parsedDeployment);
 
-            if (CommandContextUtil.getProcessEngineConfiguration(commandContext).getEventDispatcher().isEnabled()) {
-                CommandContextUtil.getProcessEngineConfiguration(commandContext).getEventDispatcher().dispatchEvent(FlowableEventBuilder.createEntityEvent(FlowableEngineEventType.ENTITY_CREATED, processDefinition));
+            FlowableEventDispatcher eventDispatcher = CommandContextUtil.getProcessEngineConfiguration(commandContext).getEventDispatcher();
+            if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+                eventDispatcher
+                    .dispatchEvent(FlowableEventBuilder.createEntityEvent(FlowableEngineEventType.ENTITY_CREATED, processDefinition));
+            }
+        }
+    }
+    
+    protected void setDerivedProcessDefinitionVersionsAndIds(ParsedDeployment parsedDeployment, 
+            Map<ProcessDefinitionEntity, ProcessDefinitionEntity> mapNewToOldProcessDefinitions, Map<String, Object> deploymentSettings) {
+        
+        CommandContext commandContext = Context.getCommandContext();
+        
+        for (ProcessDefinitionEntity processDefinition : parsedDeployment.getAllProcessDefinitions()) {
+            int derivedVersion = 1;
+            
+            ProcessDefinitionEntity latest = mapNewToOldProcessDefinitions.get(processDefinition);
+            if (latest != null) {
+                derivedVersion = latest.getDerivedVersion() + 1;
+            }
+            
+            processDefinition.setVersion(0);
+            processDefinition.setDerivedVersion(derivedVersion);
+            if (usePrefixId) {
+                processDefinition.setId(processDefinition.getIdPrefix() + idGenerator.getNextId());
+            } else {
+                processDefinition.setId(idGenerator.getNextId());
+            }
+            
+            processDefinition.setDerivedFrom((String) deploymentSettings.get(DeploymentSettings.DERIVED_PROCESS_DEFINITION_ID));
+            processDefinition.setDerivedFromRoot((String) deploymentSettings.get(DeploymentSettings.DERIVED_PROCESS_DEFINITION_ROOT_ID));
+
+            Process process = parsedDeployment.getProcessModelForProcessDefinition(processDefinition);
+            FlowElement initialElement = process.getInitialFlowElement();
+            if (initialElement instanceof StartEvent) {
+                StartEvent startEvent = (StartEvent) initialElement;
+                if (startEvent.getFormKey() != null) {
+                    processDefinition.setHasStartFormKey(true);
+                }
+            }
+            
+            cachingAndArtifactsManager.updateProcessDefinitionCache(parsedDeployment);
+
+            FlowableEventDispatcher eventDispatcher = CommandContextUtil.getProcessEngineConfiguration(commandContext).getEventDispatcher();
+            if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+                eventDispatcher
+                    .dispatchEvent(FlowableEventBuilder.createEntityEvent(FlowableEngineEventType.ENTITY_CREATED, processDefinition));
             }
         }
     }
@@ -219,8 +297,9 @@ public class BpmnDeployer implements Deployer {
     protected void dispatchProcessDefinitionEntityInitializedEvent(ParsedDeployment parsedDeployment) {
         CommandContext commandContext = Context.getCommandContext();
         for (ProcessDefinitionEntity processDefinitionEntity : parsedDeployment.getAllProcessDefinitions()) {
-            if (CommandContextUtil.getProcessEngineConfiguration(commandContext).getEventDispatcher().isEnabled()) {
-                CommandContextUtil.getProcessEngineConfiguration(commandContext).getEventDispatcher().dispatchEvent(
+            FlowableEventDispatcher eventDispatcher = CommandContextUtil.getProcessEngineConfiguration(commandContext).getEventDispatcher();
+            if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+                eventDispatcher.dispatchEvent(
                         FlowableEventBuilder.createEntityEvent(FlowableEngineEventType.ENTITY_INITIALIZED, processDefinitionEntity));
             }
         }
@@ -232,12 +311,18 @@ public class BpmnDeployer implements Deployer {
      * Process definition ids NEED to be unique across the whole engine!
      */
     protected String getIdForNewProcessDefinition(ProcessDefinitionEntity processDefinition) {
+        String prefixId = "";
+        if (usePrefixId) {
+            prefixId = processDefinition.getIdPrefix();
+        } 
+        
         String nextId = idGenerator.getNextId();
 
-        String result = processDefinition.getKey() + ":" + processDefinition.getVersion() + ":" + nextId; // ACT-505
+        String result = prefixId + processDefinition.getKey() + ":" + processDefinition.getVersion() + ":" + nextId; // ACT-505
         // ACT-115: maximum id length is 64 characters
         if (result.length() > 64) {
-            result = nextId;
+            // The length is exceeded due to the long process definition key
+            result = prefixId + nextId;
         }
 
         return result;
@@ -457,5 +542,13 @@ public class BpmnDeployer implements Deployer {
 
     public void setProcessDefinitionDiagramHelper(ProcessDefinitionDiagramHelper processDefinitionDiagramHelper) {
         this.processDefinitionDiagramHelper = processDefinitionDiagramHelper;
+    }
+
+    public boolean isUsePrefixId() {
+        return usePrefixId;
+    }
+
+    public void setUsePrefixId(boolean usePrefixId) {
+        this.usePrefixId = usePrefixId;
     }
 }

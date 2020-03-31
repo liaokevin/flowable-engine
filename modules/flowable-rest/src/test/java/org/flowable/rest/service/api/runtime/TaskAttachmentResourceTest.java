@@ -13,13 +13,18 @@
 
 package org.flowable.rest.service.api.runtime;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
@@ -30,8 +35,9 @@ import org.flowable.engine.task.Attachment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.HttpMultipartHelper;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.Task;
-import org.flowable.task.service.history.HistoricTaskInstance;
+import org.flowable.task.api.Task;
+import org.flowable.task.api.history.HistoricTaskInstance;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -44,6 +50,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting all attachments for a task. GET runtime/tasks/{taskId}/attachments
      */
+    @Test
     public void testGetAttachments() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -76,6 +83,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting all attachments for a task. GET runtime/tasks/{taskId}/attachments
      */
+    @Test
     public void testGetAttachmentsUnexistingTask() throws Exception {
         closeResponse(executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_ATTACHMENT_COLLECTION, "unexistingtask")), HttpStatus.SC_NOT_FOUND));
     }
@@ -83,6 +91,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a single attachments for a task. GET runtime/tasks/{taskId}/attachments/{attachmentId}
      */
+    @Test
     public void testGetAttachment() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -143,6 +152,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a single attachments for a task, using unexisting task and unexisting attachment. GET runtime/tasks/{taskId}/attachments/{attachmentId}
      */
+    @Test
     public void testGetAttachmentUnexistingTaskAndAttachment() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -170,6 +180,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting the content for a single attachments for a task. GET runtime/tasks/{taskId}/attachments/{attachmentId}/content
      */
+    @Test
     public void testGetAttachmentContent() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -185,8 +196,9 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
                     HttpStatus.SC_OK);
 
             // Check response body
-            String responseBodyString = IOUtils.toString(response.getEntity().getContent());
-            assertEquals("This is binary content", responseBodyString);
+            try (InputStream contentStream = response.getEntity().getContent()) {
+                assertThat(contentStream).hasContent("This is binary content");
+            }
 
             // Check response headers
             assertEquals("application/octet-stream", response.getEntity().getContentType().getValue());
@@ -204,6 +216,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting the content for a single attachments for a task, with a mime-type set. GET runtime/tasks/{taskId}/attachments/{attachmentId}/content
      */
+    @Test
     public void testGetAttachmentContentWithMimeType() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -234,6 +247,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting the content for a single attachments for a task, for an attachment without content. GET runtime/tasks/{taskId}/attachments/{attachmentId}/content
      */
+    @Test
     public void testGetAttachmentContentWithoutContent() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -258,6 +272,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test creating a single attachments for a task POST runtime/tasks/{taskId}/attachments/{attachmentId}
      */
+    @Test
     public void testCreateAttachment() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -305,6 +320,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test creating a single attachments for a task, using multipart-request to supply content POST runtime/tasks/{taskId}/attachments/{attachmentId}
      */
+    @Test
     public void testCreateAttachmentWithContent() throws Exception {
 
         try {
@@ -328,7 +344,9 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
             assertEquals(1, attachments.size());
 
             Attachment binaryAttachment = attachments.get(0);
-            assertEquals("This is binary content", IOUtils.toString(taskService.getAttachmentContent(binaryAttachment.getId())));
+            try (InputStream contentStream = taskService.getAttachmentContent(binaryAttachment.getId())) {
+                assertThat(contentStream).hasContent("This is binary content");
+            }
 
             JsonNode responseNode = objectMapper.readTree(response.getEntity().getContent());
             closeResponse(response);
@@ -357,6 +375,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test creating a single attachments for a task, without a name POST runtime/tasks/{taskId}/attachments/{attachmentId}
      */
+    @Test
     public void testCreateAttachmentNoName() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -370,7 +389,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
             // Post JSON without name
             HttpPost httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_ATTACHMENT_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
 
         } finally {
             // Clean adhoc-tasks even if test fails
@@ -384,6 +403,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test deleting a single attachments for a task DELETE runtime/tasks/{taskId}/attachments/{attachmentId}
      */
+    @Test
     public void testDeleteAttachment() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -415,6 +435,7 @@ public class TaskAttachmentResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a single attachments for a task. GET runtime/tasks/{taskId}/attachments/{attachmentId}
      */
+    @Test
     public void testGetAttachmentForCompletedTask() throws Exception {
         try {
             Task task = taskService.newTask();

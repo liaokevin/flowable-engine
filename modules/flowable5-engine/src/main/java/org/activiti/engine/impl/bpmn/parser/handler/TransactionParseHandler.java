@@ -17,17 +17,18 @@ import org.activiti.engine.impl.pvm.process.ActivityImpl;
 import org.flowable.bpmn.constants.BpmnXMLConstants;
 import org.flowable.bpmn.model.BaseElement;
 import org.flowable.bpmn.model.Transaction;
-import org.flowable.engine.impl.bpmn.data.IOSpecification;
 
 /**
  * @author Joram Barrez
  */
 public class TransactionParseHandler extends AbstractActivityBpmnParseHandler<Transaction> {
 
+    @Override
     public Class<? extends BaseElement> getHandledType() {
         return Transaction.class;
     }
 
+    @Override
     protected void executeParse(BpmnParse bpmnParse, Transaction transaction) {
 
         ActivityImpl activity = createActivityOnCurrentScope(bpmnParse, transaction, BpmnXMLConstants.ELEMENT_TRANSACTION);
@@ -44,12 +45,6 @@ public class TransactionParseHandler extends AbstractActivityBpmnParseHandler<Tr
         processArtifacts(bpmnParse, transaction.getArtifacts(), activity);
 
         bpmnParse.removeCurrentScope();
-
-        if (transaction.getIoSpecification() != null) {
-            IOSpecification ioSpecification = createIOSpecification(bpmnParse, transaction.getIoSpecification());
-            activity.setIoSpecification(ioSpecification);
-        }
-
     }
 
 }

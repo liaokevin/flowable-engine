@@ -18,19 +18,21 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.query.AbstractQuery;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.query.CacheAwareQuery;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.impl.query.AbstractQuery;
 import org.flowable.form.api.FormInstance;
 import org.flowable.form.api.FormInstanceQuery;
+import org.flowable.form.engine.impl.persistence.entity.FormInstanceEntity;
 import org.flowable.form.engine.impl.util.CommandContextUtil;
 
 /**
  * @author Tijs Rademakers
  * @author Joram Barrez
  */
-public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, FormInstance> implements FormInstanceQuery, Serializable {
+public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, FormInstance> implements FormInstanceQuery, CacheAwareQuery<FormInstanceEntity>, Serializable {
 
     private static final long serialVersionUID = 1L;
     protected String id;
@@ -43,6 +45,9 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
     protected String processInstanceIdLike;
     protected String processDefinitionId;
     protected String processDefinitionIdLike;
+    protected String scopeId;
+    protected String scopeType;
+    protected String scopeDefinitionId;
     protected Date submittedDate;
     protected Date submittedDateBefore;
     protected Date submittedDateAfter;
@@ -51,6 +56,7 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
     protected String tenantId;
     protected String tenantIdLike;
     protected boolean withoutTenantId;
+    protected boolean withoutTaskId;
 
     public FormInstanceQueryImpl() {
     }
@@ -63,82 +69,116 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
         super(commandExecutor);
     }
 
+    @Override
     public FormInstanceQueryImpl id(String id) {
         this.id = id;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl ids(Set<String> ids) {
         this.ids = ids;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl formDefinitionId(String formDefinitionId) {
         this.formDefinitionId = formDefinitionId;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl formDefinitionIdLike(String formDefinitionIdLike) {
         this.formDefinitionIdLike = formDefinitionIdLike;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl taskId(String taskId) {
         this.taskId = taskId;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl taskIdLike(String taskIdLike) {
         this.taskIdLike = taskIdLike;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl processInstanceId(String processInstanceId) {
         this.processInstanceId = processInstanceId;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl processInstanceIdLike(String processInstanceIdLike) {
         this.processInstanceIdLike = processInstanceIdLike;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl processDefinitionId(String processDefinitionId) {
         this.processDefinitionId = processDefinitionId;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl processDefinitionIdLike(String processDefinitionIdLike) {
         this.processDefinitionIdLike = processDefinitionIdLike;
         return this;
     }
+    
+    @Override
+    public FormInstanceQueryImpl scopeId(String scopeId) {
+        this.scopeId = scopeId;
+        return this;
+    }
+    
+    @Override
+    public FormInstanceQueryImpl scopeType(String scopeType) {
+        this.scopeType = scopeType;
+        return this;
+    }
+    
+    @Override
+    public FormInstanceQueryImpl scopeDefinitionId(String scopeDefinitionId) {
+        this.scopeDefinitionId = scopeDefinitionId;
+        return this;
+    }
 
+    @Override
     public FormInstanceQueryImpl submittedDate(Date submittedDate) {
         this.submittedDate = submittedDate;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl submittedDateBefore(Date submittedDateBefore) {
         this.submittedDateBefore = submittedDateBefore;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl submittedDateAfter(Date submittedDateAfter) {
         this.submittedDateAfter = submittedDateAfter;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl submittedBy(String submittedBy) {
         this.submittedBy = submittedBy;
         return this;
     }
 
+    @Override
     public FormInstanceQueryImpl submittedByLike(String submittedByLike) {
         this.submittedByLike = submittedByLike;
         return this;
     }
 
-    public FormInstanceQueryImpl deploymentTenantId(String tenantId) {
+    @Override
+    public FormInstanceQueryImpl tenantId(String tenantId) {
         if (tenantId == null) {
             throw new FlowableIllegalArgumentException("deploymentTenantId is null");
         }
@@ -146,7 +186,8 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
         return this;
     }
 
-    public FormInstanceQueryImpl deploymentTenantIdLike(String tenantIdLike) {
+    @Override
+    public FormInstanceQueryImpl tenantIdLike(String tenantIdLike) {
         if (tenantIdLike == null) {
             throw new FlowableIllegalArgumentException("deploymentTenantIdLike is null");
         }
@@ -154,17 +195,26 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
         return this;
     }
 
-    public FormInstanceQueryImpl deploymentWithoutTenantId() {
+    @Override
+    public FormInstanceQueryImpl withoutTenantId() {
         this.withoutTenantId = true;
+        return this;
+    }
+
+    @Override
+    public FormInstanceQueryImpl withoutTaskId() {
+        this.withoutTaskId = true;
         return this;
     }
 
     // sorting ////////////////////////////////////////////////////////
 
+    @Override
     public FormInstanceQuery orderBySubmittedDate() {
         return orderBy(FormInstanceQueryProperty.SUBMITTED_DATE);
     }
 
+    @Override
     public FormInstanceQuery orderByTenantId() {
         return orderBy(FormInstanceQueryProperty.TENANT_ID);
     }
@@ -173,18 +223,17 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
 
     @Override
     public long executeCount(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getFormInstanceEntityManager(commandContext).findFormInstanceCountByQueryCriteria(this);
     }
 
     @Override
     public List<FormInstance> executeList(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getFormInstanceEntityManager(commandContext).findFormInstancesByQueryCriteria(this);
     }
 
     // getters ////////////////////////////////////////////////////////
 
+    @Override
     public String getId() {
         return id;
     }
@@ -225,6 +274,18 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
         return processDefinitionIdLike;
     }
 
+    public String getScopeId() {
+        return scopeId;
+    }
+
+    public String getScopeType() {
+        return scopeType;
+    }
+
+    public String getScopeDefinitionId() {
+        return scopeDefinitionId;
+    }
+
     public Date getSubmittedDate() {
         return submittedDate;
     }
@@ -255,5 +316,9 @@ public class FormInstanceQueryImpl extends AbstractQuery<FormInstanceQuery, Form
 
     public boolean isWithoutTenantId() {
         return withoutTenantId;
+    }
+
+    public boolean isWithoutTaskId() {
+        return withoutTaskId;
     }
 }

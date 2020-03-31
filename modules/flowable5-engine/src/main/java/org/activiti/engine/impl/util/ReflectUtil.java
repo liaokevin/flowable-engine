@@ -163,7 +163,7 @@ public abstract class ReflectUtil {
         try {
             field = clazz.getDeclaredField(fieldName);
         } catch (SecurityException e) {
-            throw new ActivitiException("not allowed to access field " + field + " on class " + clazz.getCanonicalName());
+            throw new ActivitiException("not allowed to access field " + field + " on class " + clazz.getCanonicalName(), e);
         } catch (NoSuchFieldException e) {
             // for some reason getDeclaredFields doesnt search superclasses
             // (which getFields() does ... but that gives only public fields)
@@ -191,7 +191,7 @@ public abstract class ReflectUtil {
      */
     public static Method getSetter(String fieldName, Class<?> clazz, Class<?> fieldType) {
         String setterName = "set" + Character.toTitleCase(fieldName.charAt(0)) +
-                fieldName.substring(1, fieldName.length());
+                fieldName.substring(1);
         try {
             // Using getMethods(), getMethod(...) expects exact parameter type
             // matching and ignores inheritance-tree.
@@ -206,7 +206,7 @@ public abstract class ReflectUtil {
             }
             return null;
         } catch (SecurityException e) {
-            throw new ActivitiException("Not allowed to access method " + setterName + " on class " + clazz.getCanonicalName());
+            throw new ActivitiException("Not allowed to access method " + setterName + " on class " + clazz.getCanonicalName(), e);
         }
     }
 

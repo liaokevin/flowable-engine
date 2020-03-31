@@ -16,23 +16,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.flowable.task.service.TaskServiceConfiguration;
-import org.flowable.task.service.history.HistoricTaskInstance;
+import org.flowable.common.engine.impl.db.AbstractDataManager;
+import org.flowable.task.api.history.HistoricTaskInstance;
 import org.flowable.task.service.impl.HistoricTaskInstanceQueryImpl;
 import org.flowable.task.service.impl.persistence.entity.HistoricTaskInstanceEntity;
 import org.flowable.task.service.impl.persistence.entity.HistoricTaskInstanceEntityImpl;
 import org.flowable.task.service.impl.persistence.entity.TaskEntity;
-import org.flowable.task.service.impl.persistence.entity.data.AbstractDataManager;
 import org.flowable.task.service.impl.persistence.entity.data.HistoricTaskInstanceDataManager;
+import org.flowable.task.service.impl.util.CommandContextUtil;
 
 /**
  * @author Joram Barrez
  */
 public class MybatisHistoricTaskInstanceDataManager extends AbstractDataManager<HistoricTaskInstanceEntity> implements HistoricTaskInstanceDataManager {
-
-    public MybatisHistoricTaskInstanceDataManager(TaskServiceConfiguration taskServiceConfiguration) {
-        super(taskServiceConfiguration);
-    }
 
     @Override
     public Class<? extends HistoricTaskInstanceEntity> getManagedEntityClass() {
@@ -69,7 +65,7 @@ public class MybatisHistoricTaskInstanceDataManager extends AbstractDataManager<
     @Override
     @SuppressWarnings("unchecked")
     public List<HistoricTaskInstance> findHistoricTaskInstancesByQueryCriteria(HistoricTaskInstanceQueryImpl historicTaskInstanceQuery) {
-        return getDbSqlSession().selectList("selectHistoricTaskInstancesByQueryCriteria", historicTaskInstanceQuery);
+        return getDbSqlSession().selectList("selectHistoricTaskInstancesByQueryCriteria", historicTaskInstanceQuery, getManagedEntityClass());
     }
 
     @Override
@@ -85,11 +81,12 @@ public class MybatisHistoricTaskInstanceDataManager extends AbstractDataManager<
         if (historicTaskInstanceQuery.getTaskVariablesLimit() != null) {
             historicTaskInstanceQuery.setMaxResults(historicTaskInstanceQuery.getTaskVariablesLimit());
         } else {
-            historicTaskInstanceQuery.setMaxResults(getTaskServiceConfiguration().getHistoricTaskQueryLimit());
+            historicTaskInstanceQuery.setMaxResults(CommandContextUtil.getTaskServiceConfiguration().getHistoricTaskQueryLimit());
         }
         historicTaskInstanceQuery.setFirstResult(0);
 
-        List<HistoricTaskInstance> instanceList = getDbSqlSession().selectListWithRawParameterNoCacheCheck("selectHistoricTaskInstancesWithRelatedEntitiesByQueryCriteria", historicTaskInstanceQuery);
+        List<HistoricTaskInstance> instanceList = getDbSqlSession().selectListWithRawParameterNoCacheLoadAndStore(
+                        "selectHistoricTaskInstancesWithRelatedEntitiesByQueryCriteria", historicTaskInstanceQuery, getManagedEntityClass());
 
         if (instanceList != null && !instanceList.isEmpty()) {
             if (firstResult > 0) {
@@ -118,5 +115,19 @@ public class MybatisHistoricTaskInstanceDataManager extends AbstractDataManager<
     public long findHistoricTaskInstanceCountByNativeQuery(Map<String, Object> parameterMap) {
         return (Long) getDbSqlSession().selectOne("selectHistoricTaskInstanceCountByNativeQuery", parameterMap);
     }
+    
+    @Override
+    public void deleteHistoricTaskInstances(HistoricTaskInstanceQueryImpl historicTaskInstanceQuery) {
+        getDbSqlSession().delete("bulkDeleteHistoricTaskInstances", historicTaskInstanceQuery, HistoricTaskInstanceEntityImpl.class);
+    }
 
+    @Override
+    public void deleteHistoricTaskInstancesForNonExistingProcessInstances() {
+        getDbSqlSession().delete("bulkDeleteHistoricTaskInstancesForNonExistingProcessInstances", null, HistoricTaskInstanceEntityImpl.class);
+    }
+    
+    @Override
+    public void deleteHistoricTaskInstancesForNonExistingCaseInstances() {
+        getDbSqlSession().delete("bulkDeleteHistoricTaskInstancesForNonExistingCaseInstances", null, HistoricTaskInstanceEntityImpl.class);
+    }
 }

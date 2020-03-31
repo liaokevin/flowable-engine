@@ -14,21 +14,27 @@ package org.flowable.engine.delegate.event.impl;
 
 import java.util.Map;
 
+import org.flowable.bpmn.model.Activity;
 import org.flowable.bpmn.model.FlowElement;
 import org.flowable.bpmn.model.FlowNode;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.api.delegate.event.FlowableEntityEvent;
-import org.flowable.engine.common.api.delegate.event.FlowableEvent;
-import org.flowable.engine.common.api.delegate.event.FlowableExceptionEvent;
-import org.flowable.engine.common.impl.event.FlowableEventImpl;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEntityEvent;
+import org.flowable.common.engine.api.delegate.event.FlowableEvent;
+import org.flowable.common.engine.api.delegate.event.FlowableExceptionEvent;
+import org.flowable.common.engine.impl.event.FlowableEngineEventImpl;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.event.FlowableActivityCancelledEvent;
 import org.flowable.engine.delegate.event.FlowableActivityEvent;
 import org.flowable.engine.delegate.event.FlowableCancelledEvent;
+import org.flowable.engine.delegate.event.FlowableConditionalEvent;
 import org.flowable.engine.delegate.event.FlowableEntityWithVariablesEvent;
 import org.flowable.engine.delegate.event.FlowableErrorEvent;
+import org.flowable.engine.delegate.event.FlowableEscalationEvent;
 import org.flowable.engine.delegate.event.FlowableJobRescheduledEvent;
 import org.flowable.engine.delegate.event.FlowableMessageEvent;
+import org.flowable.engine.delegate.event.FlowableMultiInstanceActivityCancelledEvent;
+import org.flowable.engine.delegate.event.FlowableMultiInstanceActivityCompletedEvent;
+import org.flowable.engine.delegate.event.FlowableMultiInstanceActivityEvent;
 import org.flowable.engine.delegate.event.FlowableProcessStartedEvent;
 import org.flowable.engine.delegate.event.FlowableProcessTerminatedEvent;
 import org.flowable.engine.delegate.event.FlowableSequenceFlowTakenEvent;
@@ -37,10 +43,10 @@ import org.flowable.engine.impl.context.ExecutionContext;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEntity;
-import org.flowable.job.service.Job;
-import org.flowable.task.service.Task;
-import org.flowable.variable.service.event.FlowableVariableEvent;
-import org.flowable.variable.service.impl.types.VariableType;
+import org.flowable.job.api.Job;
+import org.flowable.task.api.Task;
+import org.flowable.variable.api.event.FlowableVariableEvent;
+import org.flowable.variable.api.types.VariableType;
 
 /**
  * Builder class used to create {@link FlowableEvent} implementations.
@@ -55,12 +61,12 @@ public class FlowableEventBuilder {
      * @return an {@link FlowableEvent} that doesn't have it's execution context-fields filled, as the event is a global event, independent of any running execution.
      */
     public static FlowableEvent createGlobalEvent(FlowableEngineEventType type) {
-        FlowableEventImpl newEvent = new FlowableEventImpl(type);
+        FlowableEngineEventImpl newEvent = new FlowableProcessEventImpl(type);
         return newEvent;
     }
 
     public static FlowableEvent createEvent(FlowableEngineEventType type, String executionId, String processInstanceId, String processDefinitionId) {
-        FlowableEventImpl newEvent = new FlowableEventImpl(type);
+        FlowableEngineEventImpl newEvent = new FlowableProcessEventImpl(type);
         newEvent.setExecutionId(executionId);
         newEvent.setProcessDefinitionId(processDefinitionId);
         newEvent.setProcessInstanceId(processInstanceId);
@@ -239,6 +245,58 @@ public class FlowableEventBuilder {
         return newEvent;
     }
 
+    public static FlowableMultiInstanceActivityEvent createMultiInstanceActivityEvent(FlowableEngineEventType type, String activityId, String activityName,
+            String executionId, String processInstanceId, String processDefinitionId, FlowElement flowElement) {
+
+        FlowableMultiInstanceActivityEventImpl newEvent = new FlowableMultiInstanceActivityEventImpl(type);
+        newEvent.setActivityId(activityId);
+        newEvent.setActivityName(activityName);
+        newEvent.setExecutionId(executionId);
+        newEvent.setProcessDefinitionId(processDefinitionId);
+        newEvent.setProcessInstanceId(processInstanceId);
+
+        if (flowElement instanceof FlowNode) {
+            FlowNode flowNode = (FlowNode) flowElement;
+            newEvent.setActivityType(parseActivityType(flowNode));
+            Object behaviour = flowNode.getBehavior();
+            if (behaviour != null) {
+                newEvent.setBehaviorClass(behaviour.getClass().getCanonicalName());
+            }
+
+            newEvent.setSequential(((Activity) flowNode).getLoopCharacteristics().isSequential());
+        }
+
+        return newEvent;
+    }
+
+    public static FlowableMultiInstanceActivityCompletedEvent createMultiInstanceActivityCompletedEvent(FlowableEngineEventType type, int numberOfInstances,
+            int numberOfActiveInstances, int numberOfCompletedInstances, String activityId, String activityName, String executionId, String processInstanceId,
+            String processDefinitionId, FlowElement flowElement) {
+
+        FlowableMultiInstanceActivityCompletedEventImpl newEvent = new FlowableMultiInstanceActivityCompletedEventImpl(type);
+        newEvent.setNumberOfInstances(numberOfInstances);
+        newEvent.setNumberOfActiveInstances(numberOfActiveInstances);
+        newEvent.setNumberOfCompletedInstances(numberOfCompletedInstances);
+        newEvent.setActivityId(activityId);
+        newEvent.setActivityName(activityName);
+        newEvent.setExecutionId(executionId);
+        newEvent.setProcessDefinitionId(processDefinitionId);
+        newEvent.setProcessInstanceId(processInstanceId);
+
+        if (flowElement instanceof FlowNode) {
+            FlowNode flowNode = (FlowNode) flowElement;
+            newEvent.setActivityType(parseActivityType(flowNode));
+            Object behaviour = flowNode.getBehavior();
+            if (behaviour != null) {
+                newEvent.setBehaviorClass(behaviour.getClass().getCanonicalName());
+            }
+
+            newEvent.setSequential(((Activity) flowNode).getLoopCharacteristics().isSequential());
+        }
+
+        return newEvent;
+    }
+
     protected static String parseActivityType(FlowNode flowNode) {
         String elementType = flowNode.getClass().getSimpleName();
         elementType = elementType.substring(0, 1).toLowerCase() + elementType.substring(1);
@@ -249,6 +307,20 @@ public class FlowableEventBuilder {
             String processInstanceId, String processDefinitionId, String activityType, Object cause) {
 
         FlowableActivityCancelledEventImpl newEvent = new FlowableActivityCancelledEventImpl();
+        newEvent.setActivityId(activityId);
+        newEvent.setActivityName(activityName);
+        newEvent.setExecutionId(executionId);
+        newEvent.setProcessDefinitionId(processDefinitionId);
+        newEvent.setProcessInstanceId(processInstanceId);
+        newEvent.setActivityType(activityType);
+        newEvent.setCause(cause);
+        return newEvent;
+    }
+
+    public static FlowableMultiInstanceActivityCancelledEvent createMultiInstanceActivityCancelledEvent(String activityId, String activityName,
+            String executionId,String processInstanceId, String processDefinitionId, String activityType, Object cause) {
+
+        FlowableMultiInstanceActivityCancelledEventImpl newEvent = new FlowableMultiInstanceActivityCancelledEventImpl();
         newEvent.setActivityId(activityId);
         newEvent.setActivityName(activityName);
         newEvent.setExecutionId(executionId);
@@ -284,8 +356,8 @@ public class FlowableEventBuilder {
         return newEvent;
     }
 
-    public static FlowableMessageEvent createMessageEvent(FlowableEngineEventType type, String activityId, String messageName, Object payload, String executionId, String processInstanceId,
-            String processDefinitionId) {
+    public static FlowableMessageEvent createMessageEvent(FlowableEngineEventType type, String activityId, String messageName, Object payload, 
+                    String executionId, String processInstanceId, String processDefinitionId) {
         FlowableMessageEventImpl newEvent = new FlowableMessageEventImpl(type);
         newEvent.setActivityId(activityId);
         newEvent.setExecutionId(executionId);
@@ -293,6 +365,30 @@ public class FlowableEventBuilder {
         newEvent.setProcessInstanceId(processInstanceId);
         newEvent.setMessageName(messageName);
         newEvent.setMessageData(payload);
+        return newEvent;
+    }
+    
+    public static FlowableConditionalEvent createConditionalEvent(FlowableEngineEventType type, String activityId, String conditionExpression,
+                    String executionId, String processInstanceId, String processDefinitionId) {
+        
+        FlowableConditionalEventImpl newEvent = new FlowableConditionalEventImpl(type);
+        newEvent.setActivityId(activityId);
+        newEvent.setExecutionId(executionId);
+        newEvent.setProcessDefinitionId(processDefinitionId);
+        newEvent.setProcessInstanceId(processInstanceId);
+        newEvent.setConditionExpression(conditionExpression);
+        return newEvent;
+    }
+    
+    public static FlowableEscalationEvent createEscalationEvent(FlowableEngineEventType type, String activityId, String escalationCode, String escalationName,
+                    String executionId, String processInstanceId, String processDefinitionId) {
+        FlowableEscalationEventImpl newEvent = new FlowableEscalationEventImpl(type);
+        newEvent.setActivityId(activityId);
+        newEvent.setExecutionId(executionId);
+        newEvent.setProcessDefinitionId(processDefinitionId);
+        newEvent.setProcessInstanceId(processInstanceId);
+        newEvent.setEscalationCode(escalationCode);
+        newEvent.setEscalationName(escalationName);
         return newEvent;
     }
 
@@ -321,7 +417,7 @@ public class FlowableEventBuilder {
         return newEvent;
     }
 
-    protected static void populateEventWithCurrentContext(FlowableEventImpl event) {
+    protected static void populateEventWithCurrentContext(FlowableEngineEventImpl event) {
         if (event instanceof FlowableEntityEvent) {
             Object persistedObject = ((FlowableEntityEvent) event).getEntity();
             if (persistedObject instanceof Job) {

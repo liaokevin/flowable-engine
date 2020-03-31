@@ -15,26 +15,30 @@ package org.flowable.spring;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import javax.sql.DataSource;
 
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.impl.EngineConfigurator;
+import org.flowable.common.engine.impl.interceptor.CommandConfig;
+import org.flowable.common.engine.impl.interceptor.CommandInterceptor;
+import org.flowable.common.spring.AutoDeploymentStrategy;
+import org.flowable.common.spring.SpringEngineConfiguration;
+import org.flowable.common.spring.SpringTransactionContextFactory;
+import org.flowable.common.spring.SpringTransactionInterceptor;
 import org.flowable.engine.ProcessEngine;
 import org.flowable.engine.ProcessEngineConfiguration;
 import org.flowable.engine.ProcessEngines;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.interceptor.CommandConfig;
-import org.flowable.engine.common.impl.interceptor.CommandInterceptor;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.cfg.StandaloneProcessEngineConfiguration;
-import org.flowable.spring.autodeployment.AutoDeploymentStrategy;
-import org.flowable.spring.autodeployment.DefaultAutoDeploymentStrategy;
-import org.flowable.spring.autodeployment.ResourceParentFolderAutoDeploymentStrategy;
-import org.flowable.spring.autodeployment.SingleResourceAutoDeploymentStrategy;
-import org.flowable.spring.configurator.SpringIdmEngineConfigurator;
+import org.flowable.eventregistry.spring.configurator.SpringEventRegistryConfigurator;
+import org.flowable.spring.configurator.DefaultAutoDeploymentStrategy;
+import org.flowable.spring.configurator.ResourceParentFolderAutoDeploymentStrategy;
+import org.flowable.spring.configurator.SingleResourceAutoDeploymentStrategy;
 import org.flowable.variable.service.impl.types.EntityManagerSession;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.io.Resource;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -45,7 +49,7 @@ import org.springframework.transaction.PlatformTransactionManager;
  * @author Joram Barrez
  * @author Tiese Barrell
  */
-public class SpringProcessEngineConfiguration extends ProcessEngineConfigurationImpl implements ApplicationContextAware {
+public class SpringProcessEngineConfiguration extends ProcessEngineConfigurationImpl implements SpringEngineConfiguration {
 
     protected PlatformTransactionManager transactionManager;
     protected String deploymentName = "SpringAutoDeployment";
@@ -53,22 +57,29 @@ public class SpringProcessEngineConfiguration extends ProcessEngineConfiguration
     protected String deploymentMode = "default";
     protected ApplicationContext applicationContext;
     protected Integer transactionSynchronizationAdapterOrder;
-    private Collection<AutoDeploymentStrategy> deploymentStrategies = new ArrayList<>();
+    protected Collection<AutoDeploymentStrategy<ProcessEngine>> deploymentStrategies = new ArrayList<>();
+    protected volatile boolean running = false;
+    protected List<String> enginesBuild = new ArrayList<>();
+    protected final Object lifeCycleMonitor = new Object();
 
     public SpringProcessEngineConfiguration() {
         this.transactionsExternallyManaged = true;
+        this.handleProcessEngineExecutorsAfterEngineCreate = false;
         deploymentStrategies.add(new DefaultAutoDeploymentStrategy());
         deploymentStrategies.add(new SingleResourceAutoDeploymentStrategy());
         deploymentStrategies.add(new ResourceParentFolderAutoDeploymentStrategy());
-        setIdmProcessEngineConfigurator(new SpringIdmEngineConfigurator());
     }
 
     @Override
     public ProcessEngine buildProcessEngine() {
         ProcessEngine processEngine = super.buildProcessEngine();
         ProcessEngines.setInitialized(true);
-        autoDeployResources(processEngine);
+        enginesBuild.add(processEngine.getName());
         return processEngine;
+    }
+
+    protected EngineConfigurator createDefaultEventRegistryEngineConfigurator() {
+        return new SpringEventRegistryConfigurator();
     }
 
     public void setTransactionSynchronizationAdapterOrder(Integer transactionSynchronizationAdapterOrder) {
@@ -108,8 +119,8 @@ public class SpringProcessEngineConfiguration extends ProcessEngineConfiguration
 
     protected void autoDeployResources(ProcessEngine processEngine) {
         if (deploymentResources != null && deploymentResources.length > 0) {
-            final AutoDeploymentStrategy strategy = getAutoDeploymentStrategy(deploymentMode);
-            strategy.deployResources(deploymentName, deploymentResources, processEngine.getRepositoryService());
+            AutoDeploymentStrategy<ProcessEngine> strategy = getAutoDeploymentStrategy(deploymentMode);
+            strategy.deployResources(deploymentName, deploymentResources, processEngine);
         }
     }
 
@@ -124,30 +135,37 @@ public class SpringProcessEngineConfiguration extends ProcessEngineConfiguration
         }
     }
 
+    @Override
     public PlatformTransactionManager getTransactionManager() {
         return transactionManager;
     }
 
+    @Override
     public void setTransactionManager(PlatformTransactionManager transactionManager) {
         this.transactionManager = transactionManager;
     }
 
+    @Override
     public String getDeploymentName() {
         return deploymentName;
     }
 
+    @Override
     public void setDeploymentName(String deploymentName) {
         this.deploymentName = deploymentName;
     }
 
+    @Override
     public Resource[] getDeploymentResources() {
         return deploymentResources;
     }
 
+    @Override
     public void setDeploymentResources(Resource[] deploymentResources) {
         this.deploymentResources = deploymentResources;
     }
 
+    @Override
     public ApplicationContext getApplicationContext() {
         return applicationContext;
     }
@@ -157,10 +175,12 @@ public class SpringProcessEngineConfiguration extends ProcessEngineConfiguration
         this.applicationContext = applicationContext;
     }
 
+    @Override
     public String getDeploymentMode() {
         return deploymentMode;
     }
 
+    @Override
     public void setDeploymentMode(String deploymentMode) {
         this.deploymentMode = deploymentMode;
     }
@@ -173,9 +193,9 @@ public class SpringProcessEngineConfiguration extends ProcessEngineConfiguration
      *            the mode to get the strategy for
      * @return the deployment strategy to use for the mode. Never <code>null</code>
      */
-    protected AutoDeploymentStrategy getAutoDeploymentStrategy(final String mode) {
-        AutoDeploymentStrategy result = new DefaultAutoDeploymentStrategy();
-        for (final AutoDeploymentStrategy strategy : deploymentStrategies) {
+    protected AutoDeploymentStrategy<ProcessEngine> getAutoDeploymentStrategy(final String mode) {
+        AutoDeploymentStrategy<ProcessEngine> result = new DefaultAutoDeploymentStrategy();
+        for (AutoDeploymentStrategy<ProcessEngine> strategy : deploymentStrategies) {
             if (strategy.handlesMode(mode)) {
                 result = strategy;
                 break;
@@ -184,4 +204,42 @@ public class SpringProcessEngineConfiguration extends ProcessEngineConfiguration
         return result;
     }
 
+    public Collection<AutoDeploymentStrategy<ProcessEngine>> getDeploymentStrategies() {
+        return deploymentStrategies;
+    }
+
+    public void setDeploymentStrategies(Collection<AutoDeploymentStrategy<ProcessEngine>> deploymentStrategies) {
+        this.deploymentStrategies = deploymentStrategies;
+    }
+
+    @Override
+    public void start() {
+        synchronized (lifeCycleMonitor) {
+            if (!isRunning()) {
+                enginesBuild.forEach(name -> {
+                    ProcessEngine processEngine = ProcessEngines.getProcessEngine(name);
+                    processEngine.startExecutors();
+                    autoDeployResources(processEngine);
+                });
+                running = true;
+            }
+        }
+    }
+
+    @Override
+    public void stop() {
+        synchronized (lifeCycleMonitor) {
+            running = false;
+        }
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    @Override
+    public int getPhase() {
+        return SpringEngineConfiguration.super.getPhase() + SpringEngineConfiguration.PHASE_DELTA * 2;
+    }
 }

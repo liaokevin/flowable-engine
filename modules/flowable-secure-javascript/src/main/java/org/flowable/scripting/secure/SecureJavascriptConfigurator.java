@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.flowable.common.engine.impl.AbstractEngineConfiguration;
 import org.flowable.engine.cfg.AbstractProcessEngineConfigurator;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.parse.BpmnParseHandler;
@@ -89,8 +90,15 @@ public class SecureJavascriptConfigurator extends AbstractProcessEngineConfigura
      */
     protected int scriptOptimizationLevel = -1;
 
+    /**
+     * When true, access to beans in {@link AbstractEngineConfiguration#beans} is enabled.
+     *
+     * By default disabled
+     */
+    protected boolean enableAccessToBeans = false;
+
     @Override
-    public void beforeInit(ProcessEngineConfigurationImpl processEngineConfiguration) {
+    public void beforeInit(AbstractEngineConfiguration engineConfiguration) {
 
         // Initialize the Rhino context factory (needs to be done once)
         if (secureScriptContextFactory == null) {
@@ -98,6 +106,7 @@ public class SecureJavascriptConfigurator extends AbstractProcessEngineConfigura
         }
 
         // Init parse handler that will set the secure javascript task to the activity
+        ProcessEngineConfigurationImpl processEngineConfiguration = (ProcessEngineConfigurationImpl) engineConfiguration;
         List<BpmnParseHandler> customDefaultBpmnParseHandlers = processEngineConfiguration.getCustomDefaultBpmnParseHandlers();
         if (customDefaultBpmnParseHandlers == null) {
             customDefaultBpmnParseHandlers = new ArrayList<>();
@@ -136,6 +145,7 @@ public class SecureJavascriptConfigurator extends AbstractProcessEngineConfigura
                 secureScriptContextFactory.setObserveInstructionCount(getNrOfInstructionsBeforeStateCheckCallback());
             }
 
+            secureScriptContextFactory.setEnableAccessToBeans(isEnableAccessToBeans());
             ContextFactory.initGlobal(secureScriptContextFactory);
         }
     }
@@ -219,4 +229,12 @@ public class SecureJavascriptConfigurator extends AbstractProcessEngineConfigura
         return secureScriptClassShutter;
     }
 
+    public SecureJavascriptConfigurator setEnableAccessToBeans(boolean enableAccessToBeans) {
+        this.enableAccessToBeans = enableAccessToBeans;
+        return this;
+    }
+
+    public boolean isEnableAccessToBeans() {
+        return enableAccessToBeans;
+    }
 }

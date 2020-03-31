@@ -17,9 +17,10 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.job.service.event.impl.FlowableJobEventBuilder;
 import org.flowable.job.service.impl.persistence.entity.JobEntity;
 import org.flowable.job.service.impl.persistence.entity.TimerJobEntity;
@@ -44,15 +45,18 @@ public class CancelJobsCmd implements Command<Void>, Serializable {
         jobIds.add(jobId);
     }
 
+    @Override
     public Void execute(CommandContext commandContext) {
         JobEntity jobToDelete = null;
         for (String jobId : jobIds) {
             jobToDelete = CommandContextUtil.getJobEntityManager(commandContext).findById(jobId);
 
+            FlowableEventDispatcher eventDispatcher = CommandContextUtil.getEventDispatcher(commandContext);
             if (jobToDelete != null) {
                 // When given job doesn't exist, ignore
-                if (CommandContextUtil.getEventDispatcher().isEnabled()) {
-                    CommandContextUtil.getEventDispatcher().dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_CANCELED, jobToDelete));
+                if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+                    eventDispatcher
+                        .dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_CANCELED, jobToDelete));
                 }
 
                 CommandContextUtil.getJobEntityManager(commandContext).delete(jobToDelete);
@@ -62,8 +66,9 @@ public class CancelJobsCmd implements Command<Void>, Serializable {
 
                 if (timerJobToDelete != null) {
                     // When given job doesn't exist, ignore
-                    if (CommandContextUtil.getEventDispatcher().isEnabled()) {
-                        CommandContextUtil.getEventDispatcher().dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_CANCELED, timerJobToDelete));
+                    if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+                        eventDispatcher
+                            .dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_CANCELED, timerJobToDelete));
                     }
 
                     CommandContextUtil.getTimerJobEntityManager(commandContext).delete(timerJobToDelete);

@@ -16,24 +16,27 @@ package org.flowable.examples.bpmn.callactivity;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.flowable.engine.common.impl.util.CollectionUtil;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.flowable.common.engine.impl.util.CollectionUtil;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
-import org.flowable.task.service.TaskQuery;
+import org.flowable.task.api.TaskQuery;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Joram Barrez
  */
 public class CallActivityTest extends PluggableFlowableTestCase {
 
+    @Test
     @Deployment(resources = { "org/flowable/examples/bpmn/callactivity/orderProcess.bpmn20.xml", "org/flowable/examples/bpmn/callactivity/checkCreditProcess.bpmn20.xml" })
     public void testOrderProcessWithCallActivity() {
         // After the process has started, the 'verify credit history' task
         // should be active
         ProcessInstance pi = runtimeService.startProcessInstanceByKey("orderProcess");
         TaskQuery taskQuery = taskService.createTaskQuery();
-        org.flowable.task.service.Task verifyCreditTask = taskQuery.singleResult();
+        org.flowable.task.api.Task verifyCreditTask = taskQuery.singleResult();
         assertEquals("Verify credit history", verifyCreditTask.getName());
 
         // Verify with Query API
@@ -44,16 +47,17 @@ public class CallActivityTest extends PluggableFlowableTestCase {
         // Completing the task with approval, will end the subprocess and
         // continue the original process
         taskService.complete(verifyCreditTask.getId(), CollectionUtil.singletonMap("creditApproved", true));
-        org.flowable.task.service.Task prepareAndShipTask = taskQuery.singleResult();
+        org.flowable.task.api.Task prepareAndShipTask = taskQuery.singleResult();
         assertEquals("Prepare and Ship", prepareAndShipTask.getName());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/examples/bpmn/callactivity/mainProcess.bpmn20.xml", "org/flowable/examples/bpmn/callactivity/childProcess.bpmn20.xml" })
     public void testCallActivityWithModeledDataObjectsInSubProcess() {
         // After the process has started, the 'verify credit history' task should be active
         ProcessInstance pi = runtimeService.startProcessInstanceByKey("mainProcess");
         TaskQuery taskQuery = taskService.createTaskQuery();
-        org.flowable.task.service.Task verifyCreditTask = taskQuery.singleResult();
+        org.flowable.task.api.Task verifyCreditTask = taskQuery.singleResult();
         assertEquals("User Task 1", verifyCreditTask.getName());
 
         // Verify with Query API
@@ -64,6 +68,7 @@ public class CallActivityTest extends PluggableFlowableTestCase {
         assertEquals("Batman", runtimeService.getVariable(subProcessInstance.getId(), "Name"));
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/examples/bpmn/callactivity/mainProcess.bpmn20.xml",
             "org/flowable/examples/bpmn/callactivity/childProcess.bpmn20.xml",
             "org/flowable/examples/bpmn/callactivity/mainProcessBusinessKey.bpmn20.xml",
@@ -85,5 +90,28 @@ public class CallActivityTest extends PluggableFlowableTestCase {
         pi = runtimeService.startProcessInstanceByKey("mainProcessInheritBusinessKey", "123");
         subProcessInstance = runtimeService.createProcessInstanceQuery().superProcessInstanceId(pi.getId()).singleResult();
         assertEquals("123", subProcessInstance.getBusinessKey());
+    }
+
+    @Test
+    @Deployment(resources = {"org/flowable/examples/bpmn/callactivity/processWithDynamicCallActivity.bpmn20.xml",
+            "org/flowable/examples/bpmn/callactivity/calledChildProcess.bpmn20.xml",
+            "org/flowable/examples/bpmn/callactivity/dynamicallyCalledChildProcess.bpmn20.xml"})
+    public void testCallActivityDynamicChange(){
+        // Call original CallActivity
+        ProcessInstance pi = runtimeService.startProcessInstanceByKey("processWithDynamicCallActivity");
+        taskService.complete(taskService.createTaskQuery().singleResult().getId());
+        assertEquals("Original Child Process User Task",
+                taskService.createTaskQuery().singleResult().getName());
+        taskService.complete(taskService.createTaskQuery().singleResult().getId());
+
+        // Dynamically change CallActivity
+        ProcessInstance dynamicallyChangedInstance = runtimeService.startProcessInstanceByKey("processWithDynamicCallActivity");
+        ObjectNode infoNode = dynamicBpmnService.changeCallActivityCalledElement("callActivity", "dynamicallyCalledChildProcess");
+        dynamicBpmnService.saveProcessDefinitionInfo(dynamicallyChangedInstance.getProcessDefinitionId(), infoNode);
+        taskService.complete(taskService.createTaskQuery().processInstanceId(dynamicallyChangedInstance.getProcessInstanceId()).singleResult().getId());
+
+        assertEquals("Dynamically Changed Call Activity User Task",
+                taskService.createTaskQuery().singleResult().getName());
+
     }
 }

@@ -13,10 +13,10 @@
 package org.activiti.engine.test.api.event;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEntityEvent;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.api.delegate.event.FlowableEvent;
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEntityEvent;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEvent;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.task.Comment;
 
 /**
@@ -30,7 +30,7 @@ public class StandaloneCommentEventsTest extends PluggableFlowableTestCase {
 
     public void testCommentEntityEventsStandaloneTask() throws Exception {
         if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.AUDIT)) {
-            org.flowable.task.service.Task task = null;
+            org.flowable.task.api.Task task = null;
             try {
                 task = taskService.newTask();
                 taskService.saveTask(task);

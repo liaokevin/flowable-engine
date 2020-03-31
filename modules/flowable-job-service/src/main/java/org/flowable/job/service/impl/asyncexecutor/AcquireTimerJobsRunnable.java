@@ -14,10 +14,10 @@ package org.flowable.job.service.impl.asyncexecutor;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.flowable.engine.common.api.FlowableOptimisticLockingException;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.api.FlowableOptimisticLockingException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
 import org.flowable.job.service.impl.cmd.AcquireTimerJobsCmd;
 import org.flowable.job.service.impl.persistence.entity.TimerJobEntity;
 import org.slf4j.Logger;
@@ -45,9 +45,10 @@ public class AcquireTimerJobsRunnable implements Runnable {
         this.jobManager = jobManager;
     }
 
+    @Override
     public synchronized void run() {
         LOGGER.info("starting to acquire async jobs due");
-        Thread.currentThread().setName("flowable-acquire-timer-jobs");
+        Thread.currentThread().setName("flowable-" + asyncExecutor.getJobServiceConfiguration().getEngineName() + "-acquire-timer-jobs");
 
         final CommandExecutor commandExecutor = asyncExecutor.getJobServiceConfiguration().getCommandExecutor();
 

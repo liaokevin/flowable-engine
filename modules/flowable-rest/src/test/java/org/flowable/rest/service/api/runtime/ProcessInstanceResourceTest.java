@@ -13,17 +13,24 @@
 
 package org.flowable.rest.service.api.runtime;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
+import org.flowable.common.engine.impl.identity.Authentication;
 import org.flowable.engine.impl.cmd.ChangeDeploymentTenantIdCmd;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -38,9 +45,19 @@ public class ProcessInstanceResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a single process instance.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceResourceTest.process-one.bpmn20.xml" })
     public void testGetProcessInstance() throws Exception {
-        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("processOne", "myBusinessKey");
+        Authentication.setAuthenticatedUserId("testUser");
+        ProcessInstance processInstance = runtimeService.createProcessInstanceBuilder()
+            .processDefinitionKey("processOne")
+            .businessKey("myBusinessKey")
+            .callbackId("testCallbackId")
+            .callbackType("testCallbackType")
+            .referenceId("testReferenceId")
+            .referenceType("testReferenceType")
+            .start();
+        Authentication.setAuthenticatedUserId(null);
 
         String url = buildUrl(RestUrls.URL_PROCESS_INSTANCE, processInstance.getId());
         CloseableHttpResponse response = executeRequest(new HttpGet(url), HttpStatus.SC_OK);
@@ -50,7 +67,15 @@ public class ProcessInstanceResourceTest extends BaseSpringRestTestCase {
         closeResponse(response);
         assertNotNull(responseNode);
         assertEquals(processInstance.getId(), responseNode.get("id").textValue());
+        assertTrue("has startTime", responseNode.has("startTime"));
+        assertNotNull("startTime", responseNode.get("startTime").textValue());
+        assertEquals(processInstance.getStartUserId(), responseNode.get("startUserId").textValue());
+        assertEquals(processInstance.getProcessDefinitionName(), responseNode.get("processDefinitionName").textValue());
         assertEquals("myBusinessKey", responseNode.get("businessKey").textValue());
+        assertEquals("testCallbackId", responseNode.get("callbackId").textValue());
+        assertEquals("testCallbackType", responseNode.get("callbackType").textValue());
+        assertEquals("testReferenceId", responseNode.get("referenceId").textValue());
+        assertEquals("testReferenceType", responseNode.get("referenceType").textValue());
         assertFalse(responseNode.get("suspended").booleanValue());
         assertEquals("", responseNode.get("tenantId").textValue());
 
@@ -71,6 +96,7 @@ public class ProcessInstanceResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting an unexisting process instance.
      */
+    @Test
     public void testGetUnexistingProcessInstance() {
         closeResponse(executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_PROCESS_INSTANCE, "unexistingpi")), HttpStatus.SC_NOT_FOUND));
     }
@@ -78,6 +104,7 @@ public class ProcessInstanceResourceTest extends BaseSpringRestTestCase {
     /**
      * Test deleting a single process instance.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceResourceTest.process-one.bpmn20.xml" })
     public void testDeleteProcessInstance() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("processOne", "myBusinessKey");
@@ -90,6 +117,7 @@ public class ProcessInstanceResourceTest extends BaseSpringRestTestCase {
     /**
      * Test deleting an unexisting process instance.
      */
+    @Test
     public void testDeleteUnexistingProcessInstance() {
         closeResponse(executeRequest(new HttpDelete(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_PROCESS_INSTANCE, "unexistingpi")), HttpStatus.SC_NOT_FOUND));
     }
@@ -97,6 +125,7 @@ public class ProcessInstanceResourceTest extends BaseSpringRestTestCase {
     /**
      * Test suspending a single process instance.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceResourceTest.process-one.bpmn20.xml" })
     public void testSuspendProcessInstance() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("processOne", "myBusinessKey");
@@ -126,6 +155,7 @@ public class ProcessInstanceResourceTest extends BaseSpringRestTestCase {
     /**
      * Test suspending a single process instance.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceResourceTest.process-one.bpmn20.xml" })
     public void testActivateProcessInstance() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("processOne", "myBusinessKey");

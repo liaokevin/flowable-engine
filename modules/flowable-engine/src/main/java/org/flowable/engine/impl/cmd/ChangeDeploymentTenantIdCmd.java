@@ -15,15 +15,22 @@ package org.flowable.engine.impl.cmd;
 import java.io.Serializable;
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.api.FlowableObjectNotFoundException;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.ProcessDefinitionQueryImpl;
 import org.flowable.engine.impl.persistence.entity.DeploymentEntity;
+import org.flowable.engine.impl.repository.AddAsNewDeploymentMergeStrategy;
+import org.flowable.engine.impl.repository.AddAsOldDeploymentMergeStrategy;
+import org.flowable.engine.impl.repository.MergeByDateDeploymentMergeStrategy;
+import org.flowable.engine.impl.repository.VerifyDeploymentMergeStrategy;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.impl.util.Flowable5Util;
 import org.flowable.engine.repository.Deployment;
+import org.flowable.engine.repository.DeploymentMergeStrategy;
+import org.flowable.engine.repository.MergeMode;
 import org.flowable.engine.repository.ProcessDefinition;
 
 /**
@@ -35,12 +42,40 @@ public class ChangeDeploymentTenantIdCmd implements Command<Void>, Serializable 
 
     protected String deploymentId;
     protected String newTenantId;
+    protected DeploymentMergeStrategy deploymentMergeStrategy;
 
     public ChangeDeploymentTenantIdCmd(String deploymentId, String newTenantId) {
-        this.deploymentId = deploymentId;
-        this.newTenantId = newTenantId;
+        this(deploymentId, newTenantId, MergeMode.VERIFY);
     }
 
+    public ChangeDeploymentTenantIdCmd(String deploymentId, String newTenantId, MergeMode mergeMode) {
+        this.deploymentId = deploymentId;
+        this.newTenantId = newTenantId;
+        switch (mergeMode) {
+            case VERIFY:
+                deploymentMergeStrategy = new VerifyDeploymentMergeStrategy();
+                break;
+            case AS_NEW:
+                deploymentMergeStrategy = new AddAsNewDeploymentMergeStrategy();
+                break;
+            case AS_OLD:
+                deploymentMergeStrategy = new AddAsOldDeploymentMergeStrategy();
+                break;
+            case BY_DATE:
+                deploymentMergeStrategy = new MergeByDateDeploymentMergeStrategy();
+                break;
+            default:
+                throw new FlowableException("Merge mode '" + mergeMode + "' not found.");
+        }
+    }
+
+    public ChangeDeploymentTenantIdCmd(String deploymentId, String newTenantId, DeploymentMergeStrategy deploymentMergeStrategy) {
+        this.deploymentId = deploymentId;
+        this.newTenantId = newTenantId;
+        this.deploymentMergeStrategy = deploymentMergeStrategy;
+    }
+
+    @Override
     public Void execute(CommandContext commandContext) {
         if (deploymentId == null) {
             throw new FlowableIllegalArgumentException("deploymentId is null");
@@ -58,6 +93,7 @@ public class ChangeDeploymentTenantIdCmd implements Command<Void>, Serializable 
             return null;
         }
 
+        deploymentMergeStrategy.prepareMerge(commandContext, deploymentId, newTenantId);
         String oldTenantId = deployment.getTenantId();
         deployment.setTenantId(newTenantId);
 
@@ -67,7 +103,9 @@ public class ChangeDeploymentTenantIdCmd implements Command<Void>, Serializable 
         CommandContextUtil.getExecutionEntityManager(commandContext).updateExecutionTenantIdForDeployment(deploymentId, newTenantId);
         CommandContextUtil.getTaskService().updateTaskTenantIdForDeployment(deploymentId, newTenantId);
         CommandContextUtil.getJobService().updateAllJobTypesTenantIdForDeployment(deploymentId, newTenantId);
-        CommandContextUtil.getEventSubscriptionEntityManager(commandContext).updateEventSubscriptionTenantId(oldTenantId, newTenantId);
+        CommandContextUtil.getEventSubscriptionService(commandContext).updateEventSubscriptionTenantId(oldTenantId, newTenantId);
+
+        deploymentMergeStrategy.finalizeMerge(commandContext, deploymentId, newTenantId);
 
         // Doing process definitions in memory, cause we need to clear the process definition cache
         List<ProcessDefinition> processDefinitions = new ProcessDefinitionQueryImpl().deploymentId(deploymentId).list();

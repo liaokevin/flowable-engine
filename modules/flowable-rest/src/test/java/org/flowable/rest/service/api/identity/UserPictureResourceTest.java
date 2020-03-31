@@ -13,11 +13,15 @@
 
 package org.flowable.rest.service.api.identity;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -27,6 +31,7 @@ import org.flowable.idm.api.User;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.HttpMultipartHelper;
 import org.flowable.rest.service.api.RestUrls;
+import org.junit.Test;
 import org.springframework.http.MediaType;
 
 /**
@@ -37,6 +42,7 @@ public class UserPictureResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting the picture for a user.
      */
+    @Test
     public void testGetUserPicture() throws Exception {
         User savedUser = null;
         try {
@@ -53,7 +59,9 @@ public class UserPictureResourceTest extends BaseSpringRestTestCase {
 
             CloseableHttpResponse response = executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_USER_PICTURE, newUser.getId())), HttpStatus.SC_OK);
 
-            assertEquals("this is the picture raw byte stream", IOUtils.toString(response.getEntity().getContent()));
+            try (InputStream contentStream = response.getEntity().getContent()) {
+                assertThat(contentStream).hasContent("this is the picture raw byte stream");
+            }
 
             // Check if media-type is correct
             assertEquals("image/png", response.getEntity().getContentType().getValue());
@@ -71,13 +79,15 @@ public class UserPictureResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting the picture for an unexisting user.
      */
+    @Test
     public void testGetPictureForUnexistingUser() throws Exception {
         closeResponse(executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_USER_PICTURE, "unexisting")), HttpStatus.SC_NOT_FOUND));
     }
 
     /**
-     * Test getting the picture for a user who doesn't have a pîcture set
+     * Test getting the picture for a user who does not have a picture set
      */
+    @Test
     public void testGetPictureForUserWithoutPicture() throws Exception {
         User savedUser = null;
         try {
@@ -103,6 +113,7 @@ public class UserPictureResourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testUpdatePicture() throws Exception {
         User savedUser = null;
         try {
@@ -131,6 +142,7 @@ public class UserPictureResourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testUpdatePictureWithCustomMimeType() throws Exception {
         User savedUser = null;
         try {

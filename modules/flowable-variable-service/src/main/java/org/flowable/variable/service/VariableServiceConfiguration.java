@@ -12,8 +12,9 @@
  */
 package org.flowable.variable.service;
 
-import org.flowable.engine.common.AbstractServiceConfiguration;
-import org.flowable.variable.service.history.HistoryVariableInterface;
+import org.flowable.common.engine.impl.AbstractServiceConfiguration;
+import org.flowable.variable.api.types.VariableTypes;
+import org.flowable.variable.service.history.InternalHistoryVariableManager;
 import org.flowable.variable.service.impl.HistoricVariableServiceImpl;
 import org.flowable.variable.service.impl.VariableServiceImpl;
 import org.flowable.variable.service.impl.persistence.entity.HistoricVariableInstanceEntityManager;
@@ -28,17 +29,12 @@ import org.flowable.variable.service.impl.persistence.entity.data.VariableInstan
 import org.flowable.variable.service.impl.persistence.entity.data.impl.MybatisHistoricVariableInstanceDataManager;
 import org.flowable.variable.service.impl.persistence.entity.data.impl.MybatisVariableByteArrayDataManager;
 import org.flowable.variable.service.impl.persistence.entity.data.impl.MybatisVariableInstanceDataManager;
-import org.flowable.variable.service.impl.types.VariableTypes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Tijs Rademakers
  */
 public class VariableServiceConfiguration extends AbstractServiceConfiguration {
 
-    protected static final Logger LOGGER = LoggerFactory.getLogger(VariableServiceConfiguration.class);
-    
     public static final int DEFAULT_GENERIC_MAX_LENGTH_STRING = 4000;
     public static final int DEFAULT_ORACLE_MAX_LENGTH_STRING = 2000;
 
@@ -62,9 +58,11 @@ public class VariableServiceConfiguration extends AbstractServiceConfiguration {
     
     protected VariableTypes variableTypes;
     
-    protected HistoryVariableInterface historyVariableInterface;
+    protected InternalHistoryVariableManager internalHistoryVariableManager;
     
     protected int maxLengthString;
+    
+    protected boolean loggingSessionEnabled;
     
     /**
      * This flag determines whether variables of the type 'serializable' will be tracked. This means that, when true, in a JavaDelegate you can write
@@ -76,6 +74,10 @@ public class VariableServiceConfiguration extends AbstractServiceConfiguration {
      * By default true for backwards compatibility.
      */
     protected boolean serializableVariableTypeTrackDeserializedObjects = true;
+    
+    public VariableServiceConfiguration(String engineName) {
+        super(engineName);
+    }
 
     // init
     // /////////////////////////////////////////////////////////////////////
@@ -90,13 +92,13 @@ public class VariableServiceConfiguration extends AbstractServiceConfiguration {
 
     public void initDataManagers() {
         if (variableInstanceDataManager == null) {
-            variableInstanceDataManager = new MybatisVariableInstanceDataManager(this);
+            variableInstanceDataManager = new MybatisVariableInstanceDataManager();
         }
         if (byteArrayDataManager == null) {
-            byteArrayDataManager = new MybatisVariableByteArrayDataManager(this);
+            byteArrayDataManager = new MybatisVariableByteArrayDataManager();
         }
         if (historicVariableInstanceDataManager == null) {
-            historicVariableInstanceDataManager = new MybatisHistoricVariableInstanceDataManager(this);
+            historicVariableInstanceDataManager = new MybatisHistoricVariableInstanceDataManager();
         }
     }
 
@@ -200,12 +202,12 @@ public class VariableServiceConfiguration extends AbstractServiceConfiguration {
         return this;
     }
     
-    public HistoryVariableInterface getHistoryVariableInterface() {
-        return historyVariableInterface;
+    public InternalHistoryVariableManager getInternalHistoryVariableManager() {
+        return internalHistoryVariableManager;
     }
 
-    public VariableServiceConfiguration setHistoryVariableInterface(HistoryVariableInterface historyVariableInterface) {
-        this.historyVariableInterface = historyVariableInterface;
+    public VariableServiceConfiguration setInternalHistoryVariableManager(InternalHistoryVariableManager internalHistoryVariableManager) {
+        this.internalHistoryVariableManager = internalHistoryVariableManager;
         return this;
     }
 
@@ -217,7 +219,16 @@ public class VariableServiceConfiguration extends AbstractServiceConfiguration {
         this.maxLengthString = maxLengthString;
         return this;
     }
-    
+
+    public boolean isLoggingSessionEnabled() {
+        return loggingSessionEnabled;
+    }
+
+    public VariableServiceConfiguration setLoggingSessionEnabled(boolean loggingSessionEnabled) {
+        this.loggingSessionEnabled = loggingSessionEnabled;
+        return this;
+    }
+
     public boolean isSerializableVariableTypeTrackDeserializedObjects() {
         return serializableVariableTypeTrackDeserializedObjects;
     }

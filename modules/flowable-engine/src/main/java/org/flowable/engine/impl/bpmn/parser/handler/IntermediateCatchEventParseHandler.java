@@ -13,6 +13,7 @@
 package org.flowable.engine.impl.bpmn.parser.handler;
 
 import org.flowable.bpmn.model.BaseElement;
+import org.flowable.bpmn.model.ConditionalEventDefinition;
 import org.flowable.bpmn.model.EventDefinition;
 import org.flowable.bpmn.model.IntermediateCatchEvent;
 import org.flowable.bpmn.model.MessageEventDefinition;
@@ -30,10 +31,12 @@ public class IntermediateCatchEventParseHandler extends AbstractFlowNodeBpmnPars
 
     private static final Logger LOGGER = LoggerFactory.getLogger(IntermediateCatchEventParseHandler.class);
 
+    @Override
     public Class<? extends BaseElement> getHandledType() {
         return IntermediateCatchEvent.class;
     }
 
+    @Override
     protected void executeParse(BpmnParse bpmnParse, IntermediateCatchEvent event) {
         EventDefinition eventDefinition = null;
         if (!event.getEventDefinitions().isEmpty()) {
@@ -44,7 +47,8 @@ public class IntermediateCatchEventParseHandler extends AbstractFlowNodeBpmnPars
             event.setBehavior(bpmnParse.getActivityBehaviorFactory().createIntermediateCatchEventActivityBehavior(event));
 
         } else {
-            if (eventDefinition instanceof TimerEventDefinition || eventDefinition instanceof SignalEventDefinition || eventDefinition instanceof MessageEventDefinition) {
+            if (eventDefinition instanceof TimerEventDefinition || eventDefinition instanceof SignalEventDefinition || 
+                            eventDefinition instanceof MessageEventDefinition || eventDefinition instanceof ConditionalEventDefinition) {
 
                 bpmnParse.getBpmnParserHandlers().parseElement(bpmnParse, eventDefinition);
 

@@ -22,11 +22,11 @@ import org.activiti.engine.impl.pvm.PvmProcessDefinition;
 import org.activiti.engine.impl.pvm.delegate.ActivityExecution;
 import org.activiti.engine.impl.rules.RulesAgendaFilter;
 import org.activiti.engine.impl.rules.RulesHelper;
-import org.drools.KnowledgeBase;
-import org.drools.runtime.StatefulKnowledgeSession;
+import org.flowable.common.engine.api.delegate.Expression;
 import org.flowable.engine.delegate.BusinessRuleTaskDelegate;
 import org.flowable.engine.delegate.DelegateExecution;
-import org.flowable.variable.service.delegate.Expression;
+import org.kie.api.KieBase;
+import org.kie.api.runtime.KieSession;
 
 /**
  * activity implementation of the BPMN 2.0 business rule task.
@@ -45,13 +45,14 @@ public class BusinessRuleTaskActivityBehavior extends TaskActivityBehavior imple
     public BusinessRuleTaskActivityBehavior() {
     }
 
+    @Override
     public void execute(DelegateExecution execution) {
         ActivityExecution activityExecution = (ActivityExecution) execution;
         PvmProcessDefinition processDefinition = activityExecution.getActivity().getProcessDefinition();
         String deploymentId = processDefinition.getDeploymentId();
 
-        KnowledgeBase knowledgeBase = RulesHelper.findKnowledgeBaseByDeploymentId(deploymentId);
-        StatefulKnowledgeSession ksession = knowledgeBase.newStatefulKnowledgeSession();
+        KieBase knowledgeBase = RulesHelper.findKnowledgeBaseByDeploymentId(deploymentId);
+        KieSession ksession = knowledgeBase.newKieSession();
 
         if (variablesInputExpressions != null) {
             Iterator<Expression> itVariable = variablesInputExpressions.iterator();
@@ -75,28 +76,31 @@ public class BusinessRuleTaskActivityBehavior extends TaskActivityBehavior imple
             ksession.fireAllRules();
         }
 
-        Collection<Object> ruleOutputObjects = ksession.getObjects();
+        Collection<? extends Object> ruleOutputObjects = ksession.getObjects();
         if (ruleOutputObjects != null && !ruleOutputObjects.isEmpty()) {
-            Collection<Object> outputVariables = new ArrayList<>();
-            outputVariables.addAll(ruleOutputObjects);
+            Collection<Object> outputVariables = new ArrayList<>(ruleOutputObjects);
             execution.setVariable(resultVariable, outputVariables);
         }
         ksession.dispose();
         leave(activityExecution);
     }
 
+    @Override
     public void addRuleVariableInputIdExpression(Expression inputId) {
         this.variablesInputExpressions.add(inputId);
     }
 
+    @Override
     public void addRuleIdExpression(Expression inputId) {
         this.rulesExpressions.add(inputId);
     }
 
+    @Override
     public void setExclude(boolean exclude) {
         this.exclude = exclude;
     }
 
+    @Override
     public void setResultVariable(String resultVariableName) {
         this.resultVariable = resultVariableName;
     }

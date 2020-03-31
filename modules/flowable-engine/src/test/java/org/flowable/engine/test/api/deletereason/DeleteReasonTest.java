@@ -14,7 +14,7 @@ package org.flowable.engine.test.api.deletereason;
 
 import java.util.List;
 
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.history.DeleteReason;
 import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.impl.test.HistoryTestHelper;
@@ -22,18 +22,20 @@ import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
-import org.flowable.job.service.Job;
-import org.flowable.task.service.history.HistoricTaskInstance;
+import org.flowable.job.api.Job;
+import org.flowable.task.api.history.HistoricTaskInstance;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Joram Barrez
  */
 public class DeleteReasonTest extends PluggableFlowableTestCase {
 
+    @Test
     @Deployment
     public void testDeleteProcessInstance() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("deleteReasonProcess");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("A", task.getName());
         taskService.complete(task.getId());
         runtimeService.deleteProcessInstance(processInstance.getId(), null);
@@ -60,10 +62,11 @@ public class DeleteReasonTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment
     public void testDeleteProcessInstanceWithCustomDeleteReason() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("deleteReasonProcess");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("A", task.getName());
         taskService.complete(task.getId());
 
@@ -94,12 +97,13 @@ public class DeleteReasonTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment
     public void testRegularProcessInstanceEnd() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("deleteReasonProcess");
-        List<org.flowable.task.service.Task> tasks = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
         while (!tasks.isEmpty()) {
-            for (org.flowable.task.service.Task task : tasks) {
+            for (org.flowable.task.api.Task task : tasks) {
                 taskService.complete(task.getId());
             }
             tasks = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
@@ -122,6 +126,7 @@ public class DeleteReasonTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment
     public void testDeleteProcessInstanceWithReceiveTask() {
         // First case: one receive task
@@ -161,15 +166,17 @@ public class DeleteReasonTest extends PluggableFlowableTestCase {
                     .processInstanceId(processInstance.getId()).singleResult().getDeleteReason());
 
             assertNull(historyService.createHistoricActivityInstanceQuery().processInstanceId(processInstance.getId()).activityId("boundaryTimer").singleResult());
+            assertEquals(runtimeService.createActivityInstanceQuery().processInstanceId(processInstance.getId()).count(), 0L);
             assertHistoricActivitiesDeleteReason(processInstance, null, "A");
             assertHistoricActivitiesDeleteReason(processInstance, DeleteReason.PROCESS_INSTANCE_DELETED, "B", "C");
         }
     }
 
+    @Test
     @Deployment
     public void testInterruptingBoundaryEvent() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("deleteReasonProcess");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("A", task.getName());
         taskService.complete(task.getId());
 
@@ -178,7 +185,7 @@ public class DeleteReasonTest extends PluggableFlowableTestCase {
         managementService.moveTimerToExecutableJob(timerJob.getId());
         managementService.executeJob(timerJob.getId());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertHistoricTasksDeleteReason(processInstance, null, "A");
         assertHistoricTasksDeleteReason(processInstance, DeleteReason.BOUNDARY_EVENT_INTERRUPTING, "B", "C", "D");
@@ -186,6 +193,7 @@ public class DeleteReasonTest extends PluggableFlowableTestCase {
         assertHistoricActivitiesDeleteReason(processInstance, DeleteReason.BOUNDARY_EVENT_INTERRUPTING, "B", "C", "D", "theSubprocess");
     }
 
+    @Test
     @Deployment
     public void testInterruptingBoundaryEvent2() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("deleteReasonReceiveTask");
@@ -198,7 +206,7 @@ public class DeleteReasonTest extends PluggableFlowableTestCase {
         managementService.moveTimerToExecutableJob(timerJob.getId());
         managementService.executeJob(timerJob.getId());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertHistoricActivitiesDeleteReason(processInstance, null, "A");
         assertHistoricActivitiesDeleteReason(processInstance, DeleteReason.BOUNDARY_EVENT_INTERRUPTING, "B", "C", "theSubprocess");

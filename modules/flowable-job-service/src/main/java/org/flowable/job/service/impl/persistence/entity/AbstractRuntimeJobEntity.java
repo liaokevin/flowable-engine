@@ -14,7 +14,7 @@ package org.flowable.job.service.impl.persistence.entity;
 
 import java.util.Date;
 
-import org.flowable.job.service.Job;
+import org.flowable.job.api.Job;
 
 /**
  * @author Tijs Rademakers
@@ -28,10 +28,31 @@ public interface AbstractRuntimeJobEntity extends Job, AbstractJobEntity {
 
     void setProcessDefinitionId(String processDefinitionId);
     
+    void setElementId(String elementId);
+    
+    void setElementName(String elementName);
+
+    void setScopeId(String scopeId);
+
+    void setSubScopeId(String subScopeId);
+
+    /**
+     * Set the scope type for the job.
+     * The scope type is the type which is used by the job executor to pick
+     * the jobs for executing.
+     * <p>
+     * For example if the job should be picked up by the CMMN Job executor then it
+     * should have the same type as the CMMN job executor.
+     * @param scopeType the scope type for the job
+     */
+    void setScopeType(String scopeType);
+
+    void setScopeDefinitionId(String scopeDefinitionId);
+
     void setDuedate(Date duedate);
-    
+
     void setExclusive(boolean isExclusive);
-    
+
     String getRepeat();
 
     void setRepeat(String repeat);

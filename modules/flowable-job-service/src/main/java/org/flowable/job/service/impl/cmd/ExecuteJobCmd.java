@@ -14,12 +14,13 @@ package org.flowable.job.service.impl.cmd;
 
 import java.io.Serializable;
 
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.job.service.Job;
-import org.flowable.job.service.JobNotFoundException;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.job.api.Job;
+import org.flowable.job.api.JobNotFoundException;
+import org.flowable.job.service.InternalJobCompatibilityManager;
 import org.flowable.job.service.JobServiceConfiguration;
 import org.flowable.job.service.impl.asyncexecutor.FailedJobListener;
 import org.flowable.job.service.impl.util.CommandContextUtil;
@@ -42,10 +43,11 @@ public class ExecuteJobCmd implements Command<Object>, Serializable {
         this.jobId = jobId;
     }
 
+    @Override
     public Object execute(CommandContext commandContext) {
 
         if (jobId == null) {
-            throw new FlowableIllegalArgumentException("jobId and job is null");
+            throw new FlowableIllegalArgumentException("JobId is null");
         }
 
         Job job = CommandContextUtil.getJobEntityManager(commandContext).findById(jobId);
@@ -59,10 +61,9 @@ public class ExecuteJobCmd implements Command<Object>, Serializable {
         }
 
         JobServiceConfiguration jobServiceConfiguration = CommandContextUtil.getJobServiceConfiguration(commandContext);
-        if (job.getProcessDefinitionId() != null && jobServiceConfiguration.getJobScopeInterface() != null && 
-                        jobServiceConfiguration.getJobScopeInterface().isFlowable5ProcessDefinitionId(job.getProcessDefinitionId())) {
-        
-            jobServiceConfiguration.getJobScopeInterface().executeV5Job(job);
+        InternalJobCompatibilityManager internalJobCompatibilityManager = jobServiceConfiguration.getInternalJobCompatibilityManager();
+        if (internalJobCompatibilityManager != null && internalJobCompatibilityManager.isFlowable5Job(job)) {
+            internalJobCompatibilityManager.executeV5Job(job);
             return null;
         }
 

@@ -16,38 +16,33 @@ package org.flowable.dmn.engine.impl.persistence.entity;
 import java.util.List;
 import java.util.Map;
 
+import org.flowable.common.engine.api.repository.EngineResource;
+import org.flowable.common.engine.impl.persistence.entity.AbstractEngineEntityManager;
 import org.flowable.dmn.api.DmnDecisionTable;
 import org.flowable.dmn.api.DmnDeployment;
 import org.flowable.dmn.engine.DmnEngineConfiguration;
 import org.flowable.dmn.engine.impl.DmnDeploymentQueryImpl;
 import org.flowable.dmn.engine.impl.persistence.entity.data.DmnDeploymentDataManager;
-import org.flowable.engine.common.impl.persistence.entity.data.DataManager;
 
 /**
  * @author Tijs Rademakers
  * @author Joram Barrez
  */
-public class DmnDeploymentEntityManagerImpl extends AbstractEntityManager<DmnDeploymentEntity> implements DmnDeploymentEntityManager {
-
-    protected DmnDeploymentDataManager deploymentDataManager;
+public class DmnDeploymentEntityManagerImpl
+    extends AbstractEngineEntityManager<DmnEngineConfiguration, DmnDeploymentEntity, DmnDeploymentDataManager>
+    implements DmnDeploymentEntityManager {
 
     public DmnDeploymentEntityManagerImpl(DmnEngineConfiguration dmnEngineConfiguration, DmnDeploymentDataManager deploymentDataManager) {
-        super(dmnEngineConfiguration);
-        this.deploymentDataManager = deploymentDataManager;
-    }
-
-    @Override
-    protected DataManager<DmnDeploymentEntity> getDataManager() {
-        return deploymentDataManager;
+        super(dmnEngineConfiguration, deploymentDataManager);
     }
 
     @Override
     public void insert(DmnDeploymentEntity deployment) {
         super.insert(deployment, true);
 
-        for (DmnResourceEntity resource : deployment.getResources().values()) {
+        for (EngineResource resource : deployment.getResources().values()) {
             resource.setDeploymentId(deployment.getId());
-            getResourceEntityManager().insert(resource);
+            getResourceEntityManager().insert((DmnResourceEntity) resource);
         }
     }
 
@@ -72,35 +67,39 @@ public class DmnDeploymentEntityManagerImpl extends AbstractEntityManager<DmnDep
 
     @Override
     public long findDeploymentCountByQueryCriteria(DmnDeploymentQueryImpl deploymentQuery) {
-        return deploymentDataManager.findDeploymentCountByQueryCriteria(deploymentQuery);
+        return dataManager.findDeploymentCountByQueryCriteria(deploymentQuery);
     }
 
     @Override
     public List<DmnDeployment> findDeploymentsByQueryCriteria(DmnDeploymentQueryImpl deploymentQuery) {
-        return deploymentDataManager.findDeploymentsByQueryCriteria(deploymentQuery);
+        return dataManager.findDeploymentsByQueryCriteria(deploymentQuery);
     }
 
     @Override
     public List<String> getDeploymentResourceNames(String deploymentId) {
-        return deploymentDataManager.getDeploymentResourceNames(deploymentId);
+        return dataManager.getDeploymentResourceNames(deploymentId);
     }
 
     @Override
     public List<DmnDeployment> findDeploymentsByNativeQuery(Map<String, Object> parameterMap) {
-        return deploymentDataManager.findDeploymentsByNativeQuery(parameterMap);
+        return dataManager.findDeploymentsByNativeQuery(parameterMap);
     }
 
     @Override
     public long findDeploymentCountByNativeQuery(Map<String, Object> parameterMap) {
-        return deploymentDataManager.findDeploymentCountByNativeQuery(parameterMap);
+        return dataManager.findDeploymentCountByNativeQuery(parameterMap);
     }
 
-    public DmnDeploymentDataManager getDeploymentDataManager() {
-        return deploymentDataManager;
+    protected DmnResourceEntityManager getResourceEntityManager() {
+        return engineConfiguration.getResourceEntityManager();
     }
 
-    public void setDeploymentDataManager(DmnDeploymentDataManager deploymentDataManager) {
-        this.deploymentDataManager = deploymentDataManager;
+    protected HistoricDecisionExecutionEntityManager getHistoricDecisionExecutionEntityManager() {
+        return engineConfiguration.getHistoricDecisionExecutionEntityManager();
+    }
+
+    protected DecisionTableEntityManager getDecisionTableEntityManager() {
+        return engineConfiguration.getDecisionTableEntityManager();
     }
 
 }

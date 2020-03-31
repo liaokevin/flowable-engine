@@ -12,6 +12,8 @@
  */
 package org.flowable.examples.variables;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -19,19 +21,22 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.UUID;
 
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.impl.test.HistoryTestHelper;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.DataObject;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
-import org.flowable.variable.service.history.HistoricVariableInstance;
-import org.flowable.variable.service.impl.persistence.entity.VariableInstance;
-import org.flowable.variable.service.impl.types.ValueFields;
-import org.flowable.variable.service.impl.types.VariableType;
+import org.flowable.task.api.Task;
+import org.flowable.variable.api.history.HistoricVariableInstance;
+import org.flowable.variable.api.persistence.entity.VariableInstance;
+import org.flowable.variable.api.types.ValueFields;
+import org.flowable.variable.api.types.VariableType;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -40,6 +45,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public class VariablesTest extends PluggableFlowableTestCase {
 
+    @Test
     @Deployment
     public void testBasicVariableOperations() {
         processEngineConfiguration.getVariableTypes().addType(CustomVariableType.instance);
@@ -177,11 +183,12 @@ public class VariablesTest extends PluggableFlowableTestCase {
         assertNotNull(newValue);
         assertEquals("a value", newValue);
 
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         taskService.complete(task.getId());
 
     }
 
+    @Test
     @Deployment
     public void testLocalizeVariables() {
         // Start process instance with different types of variables
@@ -222,7 +229,7 @@ public class VariablesTest extends PluggableFlowableTestCase {
         assertEquals("coca-cola", variableInstance.getValue());
 
         // Verify TaskService behavior
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
 
         variableInstances = taskService.getVariableInstances(task.getId());
         assertEquals(2, variableInstances.size());
@@ -261,13 +268,14 @@ public class VariablesTest extends PluggableFlowableTestCase {
         assertEquals("pepsi-cola", variableInstance.getValue());
     }
 
+    @Test
     @Deployment
     public void testLocalizeDataObjects() {
         // Start process instance with different types of variables
         Map<String, Object> variables = new HashMap<>();
         variables.put("stringVar", "coca-cola");
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("localizeVariables", variables);
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
 
         ObjectNode infoNode = dynamicBpmnService.getProcessDefinitionInfo(processInstance.getProcessDefinitionId());
         dynamicBpmnService.changeLocalizationName("en-US", "stringVarId", "stringVar 'en-US' Name", infoNode);
@@ -1676,11 +1684,12 @@ public class VariablesTest extends PluggableFlowableTestCase {
     }
 
     // Test case for ACT-1839
+    @Test
     @Deployment(resources = { "org/flowable/examples/variables/VariablesTest.testChangeTypeSerializable.bpmn20.xml" })
     public void testChangeTypeSerializable() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("variable-type-change-test");
         assertNotNull(processInstance);
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("Activiti is awesome!", task.getName());
         SomeSerializable myVar = (SomeSerializable) runtimeService.getVariable(processInstance.getId(), "myVar");
         assertEquals("someValue", myVar.getValue());
@@ -1692,6 +1701,7 @@ public class VariablesTest extends PluggableFlowableTestCase {
     }
 
     // test case for ACT-1082
+    @Test
     @Deployment(resources = { "org/flowable/examples/variables/VariablesTest.testBasicVariableOperations.bpmn20.xml" })
     public void testChangeVariableType() {
 
@@ -1755,10 +1765,11 @@ public class VariablesTest extends PluggableFlowableTestCase {
     }
 
     // test case for ACT-1428
+    @Test
     @Deployment
     public void testNullVariable() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("taskAssigneeProcess");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
 
         Map<String, String> variables = new HashMap<>();
         variables.put("testProperty", "434");
@@ -1781,7 +1792,7 @@ public class VariablesTest extends PluggableFlowableTestCase {
         } catch (Exception e) {
             runtimeService.deleteProcessInstance(processInstance.getId(), "intentional exception in script task");
 
-            assertEquals("class org.flowable.engine.common.api.FlowableException", e.getClass().toString());
+            assertEquals("class org.flowable.common.engine.api.FlowableException", e.getClass().toString());
         }
 
         // No we put null property, This should be put into the variable. We do not expect exceptions
@@ -1805,18 +1816,19 @@ public class VariablesTest extends PluggableFlowableTestCase {
     /**
      * Test added to validate UUID variable type + querying (ACT-1665)
      */
+    @Test
     @Deployment
     public void testUUIDVariableAndQuery() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
         assertNotNull(processInstance);
 
         // Check UUID variable type query on task
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertNotNull(task);
         UUID randomUUID = UUID.randomUUID();
         taskService.setVariableLocal(task.getId(), "conversationId", randomUUID);
 
-        org.flowable.task.service.Task resultingTask = taskService.createTaskQuery().taskVariableValueEquals("conversationId", randomUUID).singleResult();
+        org.flowable.task.api.Task resultingTask = taskService.createTaskQuery().taskVariableValueEquals("conversationId", randomUUID).singleResult();
         assertNotNull(resultingTask);
         assertEquals(task.getId(), resultingTask.getId());
 
@@ -1828,6 +1840,340 @@ public class VariablesTest extends PluggableFlowableTestCase {
 
         assertNotNull(result);
         assertEquals(processInstance.getId(), result.getId());
+    }
+
+    @Test
+    @Deployment(resources = { "org/flowable/examples/variables/VariablesTest.testBasicVariableOperations.bpmn20.xml" })
+    public void testAccessToProcessInstanceIdWhenSettingVariable() {
+        addVariableTypeIfNotExists(CustomAccessProcessInstanceVariableType.INSTANCE);
+
+        CustomAccessProcessType customVar = new CustomAccessProcessType();
+        ProcessInstance processInstance = runtimeService.createProcessInstanceBuilder()
+            .processDefinitionKey("taskAssigneeProcess")
+            .variable("customVar", customVar)
+            .start();
+
+        assertThat(customVar.getProcessInstanceId())
+            .as("custom var process instance id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getExecutionId())
+            .as("custom var execution id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getTaskId())
+            .as("custom var task id")
+            .isNull();
+
+        assertThat(customVar.getScopeId())
+            .as("custom var scope id")
+            .isNull();
+
+        assertThat(customVar.getSubScopeId())
+            .as("custom var sub scope id")
+            .isNull();
+
+        assertThat(customVar.getScopeType())
+            .as("custom var scope type")
+            .isNull();
+
+        customVar = runtimeService.getVariable(processInstance.getId(), "customVar", CustomAccessProcessType.class);
+
+        assertThat(customVar.getProcessInstanceId())
+            .as("custom var process instance id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getExecutionId())
+            .as("custom var execution id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getTaskId())
+            .as("custom var task id")
+            .isNull();
+
+        assertThat(customVar.getScopeId())
+            .as("custom var scope id")
+            .isNull();
+
+        assertThat(customVar.getSubScopeId())
+            .as("custom var sub scope id")
+            .isNull();
+
+        assertThat(customVar.getScopeType())
+            .as("custom var scope type")
+            .isNull();
+    }
+
+    @Test
+    @Deployment(resources = { "org/flowable/examples/variables/VariablesTest.testBasicVariableOperations.bpmn20.xml" })
+    public void testAccessToTaskIdWhenSettingLocalVariableOnTask() {
+        addVariableTypeIfNotExists(CustomAccessProcessInstanceVariableType.INSTANCE);
+
+        ProcessInstance processInstance = runtimeService.createProcessInstanceBuilder()
+            .processDefinitionKey("taskAssigneeProcess")
+            .start();
+
+        Task task = taskService.createTaskQuery()
+            .processInstanceId(processInstance.getId())
+            .singleResult();
+
+        assertThat(task).isNotNull();
+
+        CustomAccessProcessType customVar = new CustomAccessProcessType();
+        taskService.setVariableLocal(task.getId(), "customTaskVar", customVar);
+
+        assertThat(customVar.getProcessInstanceId())
+            .as("custom var process instance id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getExecutionId())
+            .as("custom var execution id")
+            .isEqualTo(task.getExecutionId());
+
+        assertThat(customVar.getTaskId())
+            .as("custom var task id")
+            .isEqualTo(task.getId());
+
+        assertThat(customVar.getScopeId())
+            .as("custom var scope id")
+            .isNull();
+
+        assertThat(customVar.getSubScopeId())
+            .as("custom var sub scope id")
+            .isNull();
+
+        assertThat(customVar.getScopeType())
+            .as("custom var scope type")
+            .isNull();
+
+        customVar = taskService.getVariableLocal(task.getId(), "customTaskVar", CustomAccessProcessType.class);
+
+        assertThat(customVar.getProcessInstanceId())
+            .as("custom var process instance id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getExecutionId())
+            .as("custom var execution id")
+            .isEqualTo(task.getExecutionId());
+
+        assertThat(customVar.getTaskId())
+            .as("custom var task id")
+            .isEqualTo(task.getId());
+
+        assertThat(customVar.getScopeId())
+            .as("custom var scope id")
+            .isNull();
+
+        assertThat(customVar.getSubScopeId())
+            .as("custom var sub scope id")
+            .isNull();
+
+        assertThat(customVar.getScopeType())
+            .as("custom var scope type")
+            .isNull();
+    }
+
+    @Test
+    @Deployment(resources = { "org/flowable/examples/variables/VariablesTest.testBasicVariableOperations.bpmn20.xml" })
+    public void testAccessToExecutionIdWhenSettingLocalVariableOnExecution() {
+        addVariableTypeIfNotExists(CustomAccessProcessInstanceVariableType.INSTANCE);
+
+        ProcessInstance processInstance = runtimeService.createProcessInstanceBuilder()
+            .processDefinitionKey("taskAssigneeProcess")
+            .start();
+
+        Execution execution = runtimeService.createExecutionQuery()
+            .activityId("theTask")
+            .singleResult();
+
+        assertThat(execution).isNotNull();
+
+        CustomAccessProcessType customVar = new CustomAccessProcessType();
+        runtimeService.setVariableLocal(execution.getId(), "customExecutionVar", customVar);
+
+        assertThat(customVar.getProcessInstanceId())
+            .as("custom var process instance id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getExecutionId())
+            .as("custom var execution id")
+            .isEqualTo(execution.getId());
+
+        assertThat(customVar.getTaskId())
+            .as("custom var task id")
+            .isNull();
+
+        assertThat(customVar.getScopeId())
+            .as("custom var scope id")
+            .isNull();
+
+        assertThat(customVar.getSubScopeId())
+            .as("custom var sub scope id")
+            .isNull();
+
+        assertThat(customVar.getScopeType())
+            .as("custom var scope type")
+            .isNull();
+
+        customVar = runtimeService.getVariableLocal(execution.getId(), "customExecutionVar", CustomAccessProcessType.class);
+
+        assertThat(customVar.getProcessInstanceId())
+            .as("custom var process instance id")
+            .isEqualTo(processInstance.getId());
+
+        assertThat(customVar.getExecutionId())
+            .as("custom var execution id")
+            .isEqualTo(execution.getId());
+
+        assertThat(customVar.getTaskId())
+            .as("custom var task id")
+            .isNull();
+
+        assertThat(customVar.getScopeId())
+            .as("custom var scope id")
+            .isNull();
+
+        assertThat(customVar.getSubScopeId())
+            .as("custom var sub scope id")
+            .isNull();
+
+        assertThat(customVar.getScopeType())
+            .as("custom var scope type")
+            .isNull();
+    }
+
+    protected void addVariableTypeIfNotExists(VariableType variableType) {
+        // We can't remove the VariableType after every test since it would cause the test
+        // to fail due to not being able to get the variable value during deleting
+        if (processEngineConfiguration.getVariableTypes().getTypeIndex(variableType) == -1) {
+            processEngineConfiguration.getVariableTypes().addType(variableType);
+        }
+    }
+
+    static class CustomAccessProcessType {
+
+        protected String processInstanceId;
+        protected String executionId;
+        protected String taskId;
+        protected String scopeId;
+        protected String subScopeId;
+        protected String scopeType;
+
+        public String getProcessInstanceId() {
+            return processInstanceId;
+        }
+
+        public void setProcessInstanceId(String processInstanceId) {
+            this.processInstanceId = processInstanceId;
+        }
+
+        public String getExecutionId() {
+            return executionId;
+        }
+
+        public void setExecutionId(String executionId) {
+            this.executionId = executionId;
+        }
+
+        public String getTaskId() {
+            return taskId;
+        }
+
+        public void setTaskId(String taskId) {
+            this.taskId = taskId;
+        }
+
+        public String getScopeId() {
+            return scopeId;
+        }
+
+        public void setScopeId(String scopeId) {
+            this.scopeId = scopeId;
+        }
+
+        public String getSubScopeId() {
+            return subScopeId;
+        }
+
+        public void setSubScopeId(String subScopeId) {
+            this.subScopeId = subScopeId;
+        }
+
+        public String getScopeType() {
+            return scopeType;
+        }
+
+        public void setScopeType(String scopeType) {
+            this.scopeType = scopeType;
+        }
+    }
+    static class CustomAccessProcessInstanceVariableType implements  VariableType {
+
+        static final CustomAccessProcessInstanceVariableType INSTANCE = new CustomAccessProcessInstanceVariableType();
+
+        @Override
+        public String getTypeName() {
+            return "CustomAccessProcessInstanceVariableType";
+        }
+
+        @Override
+        public boolean isCachable() {
+            return true;
+        }
+
+        @Override
+        public boolean isAbleToStore(Object value) {
+            return value instanceof CustomAccessProcessType;
+        }
+
+        @Override
+        public void setValue(Object value, ValueFields valueFields) {
+            CustomAccessProcessType customValue = (CustomAccessProcessType) value;
+
+            customValue.setProcessInstanceId(valueFields.getProcessInstanceId());
+            customValue.setExecutionId(valueFields.getExecutionId());
+            customValue.setTaskId(valueFields.getTaskId());
+            customValue.setScopeId(valueFields.getScopeId());
+            customValue.setSubScopeId(valueFields.getSubScopeId());
+            customValue.setScopeType(valueFields.getScopeType());
+
+            String textValue = new StringJoiner(",")
+                .add(customValue.getProcessInstanceId())
+                .add(customValue.getExecutionId())
+                .add(customValue.getTaskId())
+                .add(customValue.getScopeId())
+                .add(customValue.getSubScopeId())
+                .add(customValue.getScopeType())
+                .toString();
+            valueFields.setTextValue(textValue);
+        }
+
+        @Override
+        public Object getValue(ValueFields valueFields) {
+            String textValue = valueFields.getTextValue();
+            String[] values = textValue.split(",");
+
+            CustomAccessProcessType customValue = new CustomAccessProcessType();
+            customValue.setProcessInstanceId(valueAt(values, 0));
+            customValue.setExecutionId(valueAt(values, 1));
+            customValue.setTaskId(valueAt(values, 2));
+            customValue.setScopeId(valueAt(values, 3));
+            customValue.setSubScopeId(valueAt(values, 4));
+            customValue.setScopeType(valueAt(values, 5));
+
+            return customValue;
+        }
+
+        protected String valueAt(String[] array, int index) {
+            if (array.length > index) {
+                return getValue(array[index]);
+            }
+
+            return null;
+        }
+        protected String getValue(String value) {
+            return "null".equals(value) ? null : value;
+        }
     }
 
 }

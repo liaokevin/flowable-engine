@@ -33,7 +33,9 @@ public class SecureScriptContextFactory extends ContextFactory {
     protected int maxStackDepth = -1;
     protected int optimizationLevel = -1;
     protected SecureScriptThreadMxBeanWrapper threadMxBeanWrapper;
+    protected boolean enableAccessToBeans = false;
 
+    @Override
     protected Context makeContext() {
         SecureScriptContext context = new SecureScriptContext(this);
 
@@ -67,6 +69,7 @@ public class SecureScriptContextFactory extends ContextFactory {
         return context;
     }
 
+    @Override
     protected void observeInstructionCount(Context cx, int instructionCount) {
         SecureScriptContext context = (SecureScriptContext) cx;
 
@@ -94,6 +97,7 @@ public class SecureScriptContextFactory extends ContextFactory {
     }
 
     // Override {@link #doTopCall(Callable, Context, Scriptable, Scriptable, Object[])}
+    @Override
     protected Object doTopCall(Callable callable, Context cx, Scriptable scope, Scriptable thisObj, Object[] args) {
         SecureScriptContext mcx = (SecureScriptContext) cx;
         mcx.setStartTime(System.currentTimeMillis());
@@ -157,5 +161,13 @@ public class SecureScriptContextFactory extends ContextFactory {
 
     public void setMaxStackDepth(int maxStackDepth) {
         this.maxStackDepth = maxStackDepth;
+    }
+
+    public boolean isEnableAccessToBeans() {
+        return enableAccessToBeans;
+    }
+
+    public void setEnableAccessToBeans(boolean enableAccessToBeans) {
+        this.enableAccessToBeans = enableAccessToBeans;
     }
 }

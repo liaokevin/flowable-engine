@@ -13,24 +13,29 @@
 
 package org.flowable.rest.service.api.repository;
 
-import java.io.ByteArrayInputStream;
-
-import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.flowable.engine.repository.Model;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.HttpMultipartHelper;
 import org.flowable.rest.service.api.RestUrls;
+import org.junit.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Frederik Heremans
  */
 public class ModelResourceSourceTest extends BaseSpringRestTestCase {
 
+    @Test
     public void testGetModelEditorSource() throws Exception {
 
         Model model = null;
@@ -47,7 +52,9 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
 
             // Check "OK" status
             assertEquals("application/octet-stream", response.getEntity().getContentType().getValue());
-            assertEquals("This is the editor source", IOUtils.toString(response.getEntity().getContent()));
+            try (InputStream contentStream = response.getEntity().getContent()) {
+                assertThat(contentStream).hasContent("This is the editor source");
+            }
             closeResponse(response);
 
         } finally {
@@ -59,6 +66,7 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testGetModelEditorSourceNoSource() throws Exception {
         Model model = null;
         try {
@@ -79,6 +87,7 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testGetModelEditorSourceExtra() throws Exception {
 
         Model model = null;
@@ -95,7 +104,9 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
 
             // Check "OK" status
             assertEquals("application/octet-stream", response.getEntity().getContentType().getValue());
-            assertEquals("This is the extra editor source", IOUtils.toString(response.getEntity().getContent()));
+            try (InputStream contentStream = response.getEntity().getContent()) {
+                assertThat(contentStream).hasContent("This is the extra editor source");
+            }
             closeResponse(response);
 
         } finally {
@@ -107,6 +118,7 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testGetModelEditorSourceExtraNoSource() throws Exception {
         Model model = null;
         try {
@@ -127,16 +139,19 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testGetModelSourceUnexistingModel() throws Exception {
         HttpGet httpGet = new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_MODEL_SOURCE, "unexisting"));
         closeResponse(executeRequest(httpGet, HttpStatus.SC_NOT_FOUND));
     }
 
+    @Test
     public void testGetModelSourceExtraUnexistingModel() throws Exception {
         HttpGet httpGet = new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_MODEL_SOURCE_EXTRA, "unexisting"));
         closeResponse(executeRequest(httpGet, HttpStatus.SC_NOT_FOUND));
     }
 
+    @Test
     public void testSetModelEditorSource() throws Exception {
 
         Model model = null;
@@ -161,6 +176,7 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testSetModelEditorSourceExtra() throws Exception {
 
         Model model = null;
@@ -185,15 +201,17 @@ public class ModelResourceSourceTest extends BaseSpringRestTestCase {
         }
     }
 
+    @Test
     public void testSetModelSourceUnexistingModel() throws Exception {
         HttpPut httpPut = new HttpPut(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_MODEL_SOURCE, "unexisting"));
-        httpPut.setEntity(new StringEntity(""));
+        httpPut.setEntity(MultipartEntityBuilder.create().build());
         closeResponse(executeBinaryRequest(httpPut, HttpStatus.SC_NOT_FOUND));
     }
 
+    @Test
     public void testSetModelSourceExtraUnexistingModel() throws Exception {
         HttpPut httpPut = new HttpPut(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_MODEL_SOURCE_EXTRA, "unexisting"));
-        httpPut.setEntity(new StringEntity(""));
+        httpPut.setEntity(MultipartEntityBuilder.create().build());
         closeResponse(executeBinaryRequest(httpPut, HttpStatus.SC_NOT_FOUND));
     }
 }

@@ -16,9 +16,9 @@ package org.flowable.task.service.impl.persistence.entity;
 import java.util.Date;
 import java.util.List;
 
-import org.flowable.engine.common.impl.db.HasRevision;
-import org.flowable.engine.common.impl.persistence.entity.Entity;
-import org.flowable.task.service.history.HistoricTaskInstance;
+import org.flowable.common.engine.impl.db.HasRevision;
+import org.flowable.common.engine.impl.persistence.entity.Entity;
+import org.flowable.task.api.history.HistoricTaskInstance;
 import org.flowable.variable.service.impl.persistence.entity.HistoricVariableInstanceEntity;
 
 /**
@@ -67,29 +67,35 @@ public interface HistoricTaskInstanceEntity extends Entity, HistoricTaskInstance
 
     void setQueryVariables(List<HistoricVariableInstanceEntity> queryVariables);
     
-    void markEnded(String deleteReason);
-
-    String getProcessInstanceId();
-
-    String getProcessDefinitionId();
-
-    Date getStartTime();
-
-    Date getEndTime();
-
-    Long getDurationInMillis();
+    void markEnded(String deleteReason, Date endTime);
 
     void setProcessInstanceId(String processInstanceId);
 
     void setProcessDefinitionId(String processDefinitionId);
 
-    void setStartTime(Date startTime);
+    void setTaskDefinitionId(String taskDefinitionId);
+
+    void setScopeId(String scopeId);
+
+    void setSubScopeId(String subScopeId);
+
+    void setScopeType(String scopeType);
+
+    void setScopeDefinitionId(String scopeDefinitionId);
+
+    void setCreateTime(Date createTime);
+
+    /**
+     * @deprecated use {@link #setCreateTime(Date)} instead
+     */
+    @Deprecated
+    default void setStartTime(Date startTime) {
+        setCreateTime(startTime);
+    }
 
     void setEndTime(Date endTime);
 
     void setDurationInMillis(Long durationInMillis);
-
-    String getDeleteReason();
 
     void setDeleteReason(String deleteReason);
 

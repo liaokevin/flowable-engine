@@ -17,16 +17,18 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.api.FlowableObjectNotFoundException;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.runtime.Clock;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.impl.persistence.deploy.DeploymentManager;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntityManager;
 import org.flowable.engine.impl.util.CommandContextUtil;
+import org.flowable.engine.impl.util.Flowable5Util;
 import org.flowable.engine.impl.util.ProcessDefinitionUtil;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.runtime.ProcessInstance;
@@ -71,6 +73,7 @@ public class SetProcessDefinitionVersionCmd implements Command<Void>, Serializab
         this.processDefinitionVersion = processDefinitionVersion;
     }
 
+    @Override
     public Void execute(CommandContext commandContext) {
         // check that the new process definition is just another version of the same
         // process definition that the process instance is using
@@ -88,6 +91,12 @@ public class SetProcessDefinitionVersionCmd implements Command<Void>, Serializab
 
         ProcessDefinition newProcessDefinition = deploymentCache
                 .findDeployedProcessDefinitionByKeyAndVersionAndTenantId(currentProcessDefinition.getKey(), processDefinitionVersion, currentProcessDefinition.getTenantId());
+
+        if (Flowable5Util.isFlowable5ProcessDefinition(currentProcessDefinition, commandContext) && !Flowable5Util
+            .isFlowable5ProcessDefinition(newProcessDefinition, commandContext)) {
+            throw new FlowableIllegalArgumentException("The current process definition (id = '" + currentProcessDefinition.getId() + "') is a v5 definition."
+                + " However the new process definition (id = '" + newProcessDefinition.getId() + "') is not a v5 definition.");
+        }
 
         validateAndSwitchVersionOfExecution(commandContext, processInstance, newProcessDefinition);
 
@@ -117,10 +126,11 @@ public class SetProcessDefinitionVersionCmd implements Command<Void>, Serializab
         execution.setProcessDefinitionKey(newProcessDefinition.getKey());
 
         // and change possible existing tasks (as the process definition id is stored there too)
-        List<TaskEntity> tasks = CommandContextUtil.getTaskService().findTasksByExecutionId(execution.getId());
+        List<TaskEntity> tasks = CommandContextUtil.getTaskService(commandContext).findTasksByExecutionId(execution.getId());
+        Clock clock = commandContext.getCurrentEngineConfiguration().getClock();
         for (TaskEntity taskEntity : tasks) {
             taskEntity.setProcessDefinitionId(newProcessDefinition.getId());
-            CommandContextUtil.getHistoryManager(commandContext).recordTaskInfoChange(taskEntity);
+            CommandContextUtil.getActivityInstanceEntityManager(commandContext).recordTaskInfoChange(taskEntity, clock.getCurrentTime());
         }
     }
 

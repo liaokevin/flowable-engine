@@ -20,8 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.flowable.engine.common.impl.context.Context;
-import org.flowable.engine.common.impl.persistence.entity.AbstractEntity;
+import org.flowable.common.engine.impl.context.Context;
 import org.flowable.identitylink.service.impl.persistence.entity.HistoricIdentityLinkEntity;
 import org.flowable.task.service.TaskServiceConfiguration;
 import org.flowable.task.service.impl.util.CommandContextUtil;
@@ -32,14 +31,20 @@ import org.flowable.variable.service.impl.persistence.entity.HistoricVariableIns
  * @author Tom Baeyens
  * @author Joram Barrez
  */
-public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements HistoricTaskInstanceEntity {
+public class HistoricTaskInstanceEntityImpl extends AbstractTaskServiceEntity implements HistoricTaskInstanceEntity {
 
     private static final long serialVersionUID = 1L;
 
     protected String executionId;
     protected String processInstanceId;
     protected String processDefinitionId;
-    protected Date startTime;
+    protected String taskDefinitionId;
+    protected String scopeId;
+    protected String subScopeId;
+    protected String scopeType;
+    protected String scopeDefinitionId;
+    protected String propagatedStageInstanceId;
+    protected Date createTime;
     protected Date endTime;
     protected Long durationInMillis;
     protected String deleteReason;
@@ -69,15 +74,21 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
 
     public HistoricTaskInstanceEntityImpl(TaskEntity task) {
         this.id = task.getId();
+        this.taskDefinitionId = task.getTaskDefinitionId();
         this.processDefinitionId = task.getProcessDefinitionId();
         this.processInstanceId = task.getProcessInstanceId();
         this.executionId = task.getExecutionId();
+        this.scopeId = task.getScopeId();
+        this.subScopeId = task.getSubScopeId();
+        this.scopeType = task.getScopeType();
+        this.scopeDefinitionId = task.getScopeDefinitionId();
+        this.propagatedStageInstanceId = task.getPropagatedStageInstanceId();
         this.name = task.getName();
         this.parentTaskId = task.getParentTaskId();
         this.description = task.getDescription();
         this.owner = task.getOwner();
         this.assignee = task.getAssignee();
-        this.startTime = CommandContextUtil.getTaskServiceConfiguration().getClock().getCurrentTime();
+        this.createTime = task.getCreateTime();
         this.taskDefinitionKey = task.getTaskDefinitionKey();
         this.formKey = task.getFormKey();
 
@@ -93,6 +104,7 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
 
     // persistence //////////////////////////////////////////////////////////////
 
+    @Override
     public Object getPersistentState() {
         Map<String, Object> persistentState = new HashMap<>();
         persistentState.put("name", name);
@@ -108,6 +120,12 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         persistentState.put("category", category);
         persistentState.put("executionId", executionId);
         persistentState.put("processDefinitionId", processDefinitionId);
+        persistentState.put("taskDefinitionId", taskDefinitionId);
+        persistentState.put("scopeId", scopeId);
+        persistentState.put("subScopeId", subScopeId);
+        persistentState.put("scopeType", scopeType);
+        persistentState.put("scopeDefinitionId", scopeDefinitionId);
+        persistentState.put("propagatedStageInstanceId", propagatedStageInstanceId);
         persistentState.put("parentTaskId", parentTaskId);
         persistentState.put("dueDate", dueDate);
         persistentState.put("claimTime", claimTime);
@@ -115,74 +133,149 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         return persistentState;
     }
     
-    public void markEnded(String deleteReason) {
+    @Override
+    public void markEnded(String deleteReason, Date endTime) {
         if (this.endTime == null) {
             this.deleteReason = deleteReason;
-            this.endTime = CommandContextUtil.getTaskServiceConfiguration().getClock().getCurrentTime();
-            if (endTime != null && startTime != null) {
-                this.durationInMillis = endTime.getTime() - startTime.getTime();
+            if (endTime != null) {
+                this.endTime = endTime;
+            } else {
+                this.endTime = CommandContextUtil.getTaskServiceConfiguration().getClock().getCurrentTime();
+            }
+            if (endTime != null && createTime != null) {
+                this.durationInMillis = endTime.getTime() - createTime.getTime();
             }
         }
     }
 
     // getters and setters ////////////////////////////////////////////////////////
 
+    @Override
     public String getExecutionId() {
         return executionId;
     }
 
+    @Override
     public void setExecutionId(String executionId) {
         this.executionId = executionId;
     }
     
+    @Override
     public String getProcessInstanceId() {
         return processInstanceId;
     }
 
+    @Override
     public String getProcessDefinitionId() {
         return processDefinitionId;
     }
 
-    public Date getStartTime() {
-        return startTime;
+    @Override
+    public String getTaskDefinitionId() {
+        return taskDefinitionId;
     }
 
+    @Override
+    public String getScopeId() {
+        return scopeId;
+    }
+
+    @Override
+    public void setScopeId(String scopeId) {
+        this.scopeId = scopeId;
+    }
+
+    @Override
+    public String getSubScopeId() {
+        return subScopeId;
+    }
+
+    @Override
+    public void setSubScopeId(String subScopeId) {
+        this.subScopeId = subScopeId;
+    }
+
+    @Override
+    public String getScopeType() {
+        return scopeType;
+    }
+
+    @Override
+    public void setScopeType(String scopeType) {
+        this.scopeType = scopeType;
+    }
+
+    @Override
+    public String getScopeDefinitionId() {
+        return scopeDefinitionId;
+    }
+
+    @Override
+    public void setScopeDefinitionId(String scopeDefinitionId) {
+        this.scopeDefinitionId = scopeDefinitionId;
+    }
+
+    @Override
+    public String getPropagatedStageInstanceId() {
+        return propagatedStageInstanceId;
+    }
+
+    @Override
+    public Date getStartTime() {
+        return getCreateTime(); // For backwards compatible reason implemented with createTime and startTime
+    }
+
+    @Override
     public Date getEndTime() {
         return endTime;
     }
 
+    @Override
     public Long getDurationInMillis() {
         return durationInMillis;
     }
 
+    @Override
     public void setProcessInstanceId(String processInstanceId) {
         this.processInstanceId = processInstanceId;
     }
 
+    @Override
     public void setProcessDefinitionId(String processDefinitionId) {
         this.processDefinitionId = processDefinitionId;
     }
 
-    public void setStartTime(Date startTime) {
-        this.startTime = startTime;
+    @Override
+    public void setTaskDefinitionId(String taskDefinitionId) {
+        this.taskDefinitionId = taskDefinitionId;
     }
 
+    @Override
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    @Override
     public void setEndTime(Date endTime) {
         this.endTime = endTime;
     }
 
+    @Override
     public void setDurationInMillis(Long durationInMillis) {
         this.durationInMillis = durationInMillis;
     }
 
+    @Override
     public String getDeleteReason() {
         return deleteReason;
     }
 
+    @Override
     public void setDeleteReason(String deleteReason) {
         this.deleteReason = deleteReason;
     }
 
+    @Override
     public String getName() {
         if (localizedName != null && localizedName.length() > 0) {
             return localizedName;
@@ -191,14 +284,17 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         }
     }
 
+    @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    @Override
     public void setLocalizedName(String name) {
         this.localizedName = name;
     }
 
+    @Override
     public String getDescription() {
         if (localizedDescription != null && localizedDescription.length() > 0) {
             return localizedDescription;
@@ -207,103 +303,127 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         }
     }
 
+    @Override
     public void setDescription(String description) {
         this.description = description;
     }
 
+    @Override
     public void setLocalizedDescription(String description) {
         this.localizedDescription = description;
     }
 
+    @Override
     public String getAssignee() {
         return assignee;
     }
 
+    @Override
     public void setAssignee(String assignee) {
         this.assignee = assignee;
     }
 
+    @Override
     public String getTaskDefinitionKey() {
         return taskDefinitionKey;
     }
 
+    @Override
     public void setTaskDefinitionKey(String taskDefinitionKey) {
         this.taskDefinitionKey = taskDefinitionKey;
     }
 
     @Override
     public Date getCreateTime() {
-        return getStartTime(); // For backwards compatible reason implemented with createTime and startTime
+        return createTime;
     }
 
+    @Override
     public String getFormKey() {
         return formKey;
     }
 
+    @Override
     public void setFormKey(String formKey) {
         this.formKey = formKey;
     }
 
+    @Override
     public int getPriority() {
         return priority;
     }
 
+    @Override
     public void setPriority(int priority) {
         this.priority = priority;
     }
 
+    @Override
     public Date getDueDate() {
         return dueDate;
     }
 
+    @Override
     public void setDueDate(Date dueDate) {
         this.dueDate = dueDate;
     }
 
+    @Override
     public String getCategory() {
         return category;
     }
 
+    @Override
     public void setCategory(String category) {
         this.category = category;
     }
 
+    @Override
     public String getOwner() {
         return owner;
     }
 
+    @Override
     public void setOwner(String owner) {
         this.owner = owner;
     }
 
+    @Override
     public String getParentTaskId() {
         return parentTaskId;
     }
 
+    @Override
     public void setParentTaskId(String parentTaskId) {
         this.parentTaskId = parentTaskId;
     }
 
+    @Override
     public Date getClaimTime() {
         return claimTime;
     }
 
+    @Override
     public void setClaimTime(Date claimTime) {
         this.claimTime = claimTime;
     }
 
+    @Override
     public String getTenantId() {
         return tenantId;
     }
 
+    @Override
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
 
+    @Override
     public Date getTime() {
-        return getStartTime();
+        return getCreateTime();
     }
 
+    @Override
     public Long getWorkTimeInMillis() {
         if (endTime == null || claimTime == null) {
             return null;
@@ -311,14 +431,17 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         return endTime.getTime() - claimTime.getTime();
     }
 
+    @Override
     public Date getLastUpdateTime() {
         return lastUpdateTime;
     }
 
+    @Override
     public void setLastUpdateTime(Date lastUpdateTime) {
         this.lastUpdateTime = lastUpdateTime;
     }
 
+    @Override
     public Map<String, Object> getTaskLocalVariables() {
         Map<String, Object> variables = new HashMap<>();
         if (queryVariables != null) {
@@ -331,6 +454,7 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         return variables;
     }
 
+    @Override
     public Map<String, Object> getProcessVariables() {
         Map<String, Object> variables = new HashMap<>();
         if (queryVariables != null) {
@@ -343,6 +467,7 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         return variables;
     }
 
+    @Override
     public List<HistoricVariableInstanceEntity> getQueryVariables() {
         if (queryVariables == null && Context.getCommandContext() != null) {
             queryVariables = new HistoricVariableInitializingList();
@@ -350,6 +475,7 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
         return queryVariables;
     }
 
+    @Override
     public void setQueryVariables(List<HistoricVariableInstanceEntity> queryVariables) {
         this.queryVariables = queryVariables;
     }
@@ -378,4 +504,10 @@ public class HistoricTaskInstanceEntityImpl extends AbstractEntity implements Hi
     public void setQueryIdentityLinks(List<HistoricIdentityLinkEntity> identityLinks) {
         queryIdentityLinks = identityLinks;
     }
+    
+    @Override
+    public String toString() {
+        return "HistoricTaskInstanceEntity[id=" + id + "]";
+    }
+
 }

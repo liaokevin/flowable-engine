@@ -24,15 +24,17 @@ import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
-import org.flowable.variable.service.impl.persistence.entity.VariableInstance;
+import org.flowable.variable.api.persistence.entity.VariableInstance;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Tom Baeyens
  */
 public class TaskVariablesTest extends PluggableFlowableTestCase {
 
+    @Test
     public void testStandaloneTaskVariables() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setName("gonzoTask");
         taskService.saveTask(task);
 
@@ -43,6 +45,7 @@ public class TaskVariablesTest extends PluggableFlowableTestCase {
         taskService.deleteTask(taskId, true);
     }
 
+    @Test
     @Deployment
     public void testTaskExecutionVariables() {
         String processInstanceId = runtimeService.startProcessInstanceByKey("oneTaskProcess").getId();
@@ -93,8 +96,9 @@ public class TaskVariablesTest extends PluggableFlowableTestCase {
         assertEquals(expectedVariables, runtimeService.getVariablesLocal(processInstanceId));
     }
 
+    @Test
     public void testSerializableTaskVariable() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setName("MyTask");
         taskService.saveTask(task);
 
@@ -112,15 +116,16 @@ public class TaskVariablesTest extends PluggableFlowableTestCase {
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     @Deployment
     public void testGetVariablesLocalByTaskIds() {
         ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("twoTaskProcess");
         ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey("twoTaskProcess");
-        List<org.flowable.task.service.Task> taskList1 = taskService.createTaskQuery().processInstanceId(processInstance1.getId()).list();
-        List<org.flowable.task.service.Task> taskList2 = taskService.createTaskQuery().processInstanceId(processInstance2.getId()).list();
+        List<org.flowable.task.api.Task> taskList1 = taskService.createTaskQuery().processInstanceId(processInstance1.getId()).list();
+        List<org.flowable.task.api.Task> taskList2 = taskService.createTaskQuery().processInstanceId(processInstance2.getId()).list();
 
         // org.flowable.task.service.Task local variables
-        for (org.flowable.task.service.Task task : taskList1) {
+        for (org.flowable.task.api.Task task : taskList1) {
             if ("usertask1".equals(task.getTaskDefinitionKey())) {
                 taskService.setVariableLocal(task.getId(), "taskVar1", "sayHello1");
             } else {
@@ -130,7 +135,7 @@ public class TaskVariablesTest extends PluggableFlowableTestCase {
             taskService.setVariable(task.getId(), "executionVar1", "helloWorld1");
         }
         // org.flowable.task.service.Task local variables
-        for (org.flowable.task.service.Task task : taskList2) {
+        for (org.flowable.task.api.Task task : taskList2) {
             if ("usertask1".equals(task.getTaskDefinitionKey())) {
                 taskService.setVariableLocal(task.getId(), "taskVar3", "sayHello3");
             } else {
@@ -183,6 +188,7 @@ public class TaskVariablesTest extends PluggableFlowableTestCase {
         fail();
     }
 
+    @Test
     @Deployment(resources = {
             "org/flowable/engine/test/api/task/TaskVariablesTest.testTaskExecutionVariables.bpmn20.xml"
     })
@@ -205,6 +211,7 @@ public class TaskVariablesTest extends PluggableFlowableTestCase {
         assertEquals(serializableTypeVar, variables.get(0).getValue());
     }
 
+    @Test
     @Deployment(resources = {
             "org/flowable/engine/test/api/runtime/variableScope.bpmn20.xml"
     })
@@ -220,9 +227,9 @@ public class TaskVariablesTest extends PluggableFlowableTestCase {
             }
         }
 
-        List<org.flowable.task.service.Task> tasks = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
         Set<String> taskIds = new HashSet<>();
-        for (org.flowable.task.service.Task task : tasks) {
+        for (org.flowable.task.api.Task task : tasks) {
             taskService.setVariableLocal(task.getId(), "taskVar", "taskVar");
             taskIds.add(task.getId());
         }

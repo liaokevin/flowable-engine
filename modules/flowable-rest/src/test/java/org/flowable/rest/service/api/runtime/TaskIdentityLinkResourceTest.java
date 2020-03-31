@@ -13,6 +13,10 @@
 
 package org.flowable.rest.service.api.runtime;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.util.List;
 
 import org.apache.http.HttpStatus;
@@ -25,7 +29,8 @@ import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -40,6 +45,7 @@ public class TaskIdentityLinkResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting all identity links. GET runtime/tasks/{taskId}/identitylinks
      */
+    @Test
     @Deployment
     public void testGetIdentityLinks() throws Exception {
 
@@ -96,6 +102,7 @@ public class TaskIdentityLinkResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting all identity links. POST runtime/tasks/{taskId}/identitylinks
      */
+    @Test
     public void testCreateIdentityLink() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -174,6 +181,7 @@ public class TaskIdentityLinkResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a single identity link for a task. GET runtime/tasks/{taskId}/identitylinks/{family}/{identityId}/{type}
      */
+    @Test
     public void testGetSingleIdentityLink() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -207,6 +215,7 @@ public class TaskIdentityLinkResourceTest extends BaseSpringRestTestCase {
     /**
      * Test deleting a single identity link for a task. DELETE runtime/tasks/{taskId}/identitylinks/{family}/{identityId}/{type}
      */
+    @Test
     public void testDeleteSingleIdentityLink() throws Exception {
         try {
             Task task = taskService.newTask();

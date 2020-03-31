@@ -17,9 +17,9 @@ import java.io.Serializable;
 import org.flowable.bpmn.model.Activity;
 import org.flowable.bpmn.model.BpmnModel;
 import org.flowable.bpmn.model.MultiInstanceLoopCharacteristics;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.bpmn.behavior.MultiInstanceActivityBehavior;
 import org.flowable.engine.impl.bpmn.behavior.SequentialMultiInstanceBehavior;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
@@ -35,8 +35,8 @@ public class DeleteMultiInstanceExecutionCmd implements Command<Void>, Serializa
 
     private static final long serialVersionUID = 1L;
     
-    protected final String NUMBER_OF_INSTANCES = "nrOfInstances";
-    protected final String NUMBER_OF_COMPLETED_INSTANCES = "nrOfCompletedInstances";
+    protected static final String NUMBER_OF_INSTANCES = "nrOfInstances";
+    protected static final String NUMBER_OF_COMPLETED_INSTANCES = "nrOfCompletedInstances";
     
     protected String executionId;
     protected boolean executionIsCompleted;
@@ -46,6 +46,7 @@ public class DeleteMultiInstanceExecutionCmd implements Command<Void>, Serializa
         this.executionIsCompleted = executionIsCompleted;
     }
 
+    @Override
     public Void execute(CommandContext commandContext) {
         ExecutionEntityManager executionEntityManager = CommandContextUtil.getExecutionEntityManager();
         ExecutionEntity execution = executionEntityManager.findById(executionId);
@@ -68,7 +69,7 @@ public class DeleteMultiInstanceExecutionCmd implements Command<Void>, Serializa
         
         ExecutionEntity miExecution = getMultiInstanceRootExecution(execution);
         executionEntityManager.deleteChildExecutions(execution, "Delete MI execution", false);
-        executionEntityManager.deleteExecutionAndRelatedData(execution, "Delete MI execution");
+        executionEntityManager.deleteExecutionAndRelatedData(execution, "Delete MI execution", false);
         
         int loopCounter = 0;
         if (multiInstanceLoopCharacteristics.isSequential()) {

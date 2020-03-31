@@ -15,7 +15,7 @@ package org.activiti.engine.test.api.history;
 import java.util.List;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
@@ -28,7 +28,7 @@ public class HistoricProcessInstanceQueryTest extends PluggableFlowableTestCase 
     public void testLocalization() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("historicProcessLocalization");
         String processInstanceId = processInstance.getId();
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
         taskService.complete(task.getId());
 
         if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {

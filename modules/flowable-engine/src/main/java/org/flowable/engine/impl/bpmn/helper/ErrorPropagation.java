@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.flowable.bpmn.model.BoundaryEvent;
 import org.flowable.bpmn.model.BpmnModel;
 import org.flowable.bpmn.model.CallActivity;
@@ -33,13 +34,15 @@ import org.flowable.bpmn.model.FlowElementsContainer;
 import org.flowable.bpmn.model.MapExceptionEntry;
 import org.flowable.bpmn.model.Process;
 import org.flowable.bpmn.model.StartEvent;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.impl.util.CollectionUtil;
-import org.flowable.engine.common.impl.util.ReflectUtil;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.common.engine.impl.util.CollectionUtil;
+import org.flowable.common.engine.impl.util.ReflectUtil;
 import org.flowable.engine.delegate.BpmnError;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.event.impl.FlowableEventBuilder;
+import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntityManager;
 import org.flowable.engine.impl.util.CommandContextUtil;
@@ -176,8 +179,13 @@ public class ErrorPropagation {
                                                 "ERROR_EVENT " + errorId, false, false, false);
 
                 // Event
-                if (CommandContextUtil.getProcessEngineConfiguration() != null && CommandContextUtil.getProcessEngineConfiguration().getEventDispatcher().isEnabled()) {
-                    CommandContextUtil.getProcessEngineConfiguration().getEventDispatcher()
+                ProcessEngineConfigurationImpl processEngineConfiguration = CommandContextUtil.getProcessEngineConfiguration();
+                FlowableEventDispatcher eventDispatcher = null;
+                if (processEngineConfiguration != null) {
+                    eventDispatcher = processEngineConfiguration.getEventDispatcher();
+                }
+                if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+                    processEngineConfiguration.getEventDispatcher()
                             .dispatchEvent(FlowableEventBuilder.createEntityEvent(FlowableEngineEventType.PROCESS_COMPLETED_WITH_ERROR_END_EVENT, processInstanceEntity));
                 }
             }
@@ -190,7 +198,12 @@ public class ErrorPropagation {
     }
 
     protected static void executeEventHandler(Event event, ExecutionEntity parentExecution, ExecutionEntity currentExecution, String errorId) {
-        if (CommandContextUtil.getProcessEngineConfiguration() != null && CommandContextUtil.getProcessEngineConfiguration().getEventDispatcher().isEnabled()) {
+        ProcessEngineConfigurationImpl processEngineConfiguration = CommandContextUtil.getProcessEngineConfiguration();
+        FlowableEventDispatcher eventDispatcher = null;
+        if (processEngineConfiguration != null) {
+            eventDispatcher = processEngineConfiguration.getEventDispatcher();
+        }
+        if (eventDispatcher != null && eventDispatcher.isEnabled()) {
             BpmnModel bpmnModel = ProcessDefinitionUtil.getBpmnModel(parentExecution.getProcessDefinitionId());
             if (bpmnModel != null) {
 
@@ -199,7 +212,7 @@ public class ErrorPropagation {
                     errorCode = errorId;
                 }
 
-                CommandContextUtil.getProcessEngineConfiguration().getEventDispatcher().dispatchEvent(
+                processEngineConfiguration.getEventDispatcher().dispatchEvent(
                         FlowableEventBuilder.createErrorEvent(FlowableEngineEventType.ACTIVITY_ERROR_RECEIVED, event.getId(), errorId, errorCode, parentExecution.getId(),
                                 parentExecution.getProcessInstanceId(), parentExecution.getProcessDefinitionId()));
             }
@@ -213,12 +226,21 @@ public class ErrorPropagation {
             } else if (!currentExecution.getParentId().equals(parentExecution.getId())) {
                 CommandContextUtil.getAgenda().planDestroyScopeOperation(currentExecution);
             } else {
-                executionEntityManager.deleteExecutionAndRelatedData(currentExecution, null);
+                executionEntityManager.deleteExecutionAndRelatedData(currentExecution, null, false);
             }
 
             ExecutionEntity eventSubProcessExecution = executionEntityManager.createChildExecution(parentExecution);
-            eventSubProcessExecution.setCurrentFlowElement(event.getSubProcess() != null ? event.getSubProcess() : event);
-            CommandContextUtil.getAgenda().planContinueProcessOperation(eventSubProcessExecution);
+            if (event.getSubProcess() != null) {
+                eventSubProcessExecution.setCurrentFlowElement(event.getSubProcess());
+                CommandContextUtil.getActivityInstanceEntityManager().recordActivityStart(eventSubProcessExecution);
+                ExecutionEntity subProcessStartEventExecution = executionEntityManager.createChildExecution(eventSubProcessExecution);
+                subProcessStartEventExecution.setCurrentFlowElement(event);
+                CommandContextUtil.getAgenda().planContinueProcessOperation(subProcessStartEventExecution);
+                
+            } else {
+                eventSubProcessExecution.setCurrentFlowElement(event);
+                CommandContextUtil.getAgenda().planContinueProcessOperation(eventSubProcessExecution);
+            }
 
         } else {
             ExecutionEntity boundaryExecution = null;
@@ -263,7 +285,8 @@ public class ErrorPropagation {
 
         List<BoundaryEvent> boundaryEvents = process.findFlowElementsOfType(BoundaryEvent.class, true);
         for (BoundaryEvent boundaryEvent : boundaryEvents) {
-            if (boundaryEvent.getAttachedToRefId() != null && CollectionUtil.isNotEmpty(boundaryEvent.getEventDefinitions()) && boundaryEvent.getEventDefinitions().get(0) instanceof ErrorEventDefinition) {
+            if (boundaryEvent.getAttachedToRefId() != null && CollectionUtil.isNotEmpty(boundaryEvent.getEventDefinitions()) && boundaryEvent
+                    .getEventDefinitions().get(0) instanceof ErrorEventDefinition && !(boundaryEvent.getAttachedToRef() instanceof EventSubProcess)) {
 
                 ErrorEventDefinition errorEventDef = (ErrorEventDefinition) boundaryEvent.getEventDefinitions().get(0);
                 String eventErrorCode = retrieveErrorCode(bpmnModel, errorEventDef.getErrorCode());
@@ -324,11 +347,20 @@ public class ErrorPropagation {
         for (MapExceptionEntry me : exceptionMap) {
             String exceptionClass = me.getClassName();
             String errorCode = me.getErrorCode();
+            String rootCause = me.getRootCause();
 
             // save the first mapping with no exception class as default map
             if (StringUtils.isNotEmpty(errorCode) && StringUtils.isEmpty(exceptionClass) && defaultExceptionMapping == null) {
-                defaultExceptionMapping = errorCode;
-                continue;
+                // if rootCause is set, check if it matches the exception
+                if (StringUtils.isNotEmpty(rootCause)) {
+                    if (ExceptionUtils.getRootCause(e).getClass().getName().equals(rootCause)) {
+                        defaultExceptionMapping = errorCode;
+                        continue;
+                    }
+                } else {
+                    defaultExceptionMapping = errorCode;
+                    continue;
+                }
             }
 
             // ignore if error code or class are not defined
@@ -337,13 +369,25 @@ public class ErrorPropagation {
             }
 
             if (e.getClass().getName().equals(exceptionClass)) {
+                if (StringUtils.isNotEmpty(rootCause)) {
+                    if (ExceptionUtils.getRootCause(e).getClass().getName().equals(rootCause)) {
+                        return errorCode;
+                    }
+                    continue;
+                }
                 return errorCode;
             }
-            
+
             if (me.isAndChildren()) {
                 Class<?> exceptionClassClass = ReflectUtil.loadClass(exceptionClass);
                 if (exceptionClassClass.isAssignableFrom(e.getClass())) {
-                    return errorCode;
+                    if (StringUtils.isNotEmpty(rootCause)) {
+                        if (ExceptionUtils.getRootCause(e).getClass().getName().equals(rootCause)) {
+                            return errorCode;
+                        }
+                    } else {
+                        return errorCode;
+                    }
                 }
             }
         }

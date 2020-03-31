@@ -15,30 +15,38 @@ package org.flowable.engine.test.bpmn.multiinstance;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import org.flowable.common.engine.api.FlowableException;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.impl.delegate.FlowableCollectionHandler;
-import org.flowable.engine.impl.util.json.JSONArray;
-import org.flowable.engine.impl.util.json.JSONObject;
+import org.flowable.engine.impl.util.CommandContextUtil;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * @author Lori Small
  */
 public class JSONCollectionHandler implements FlowableCollectionHandler {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	@SuppressWarnings("rawtypes")
-	public Collection resolveCollection(Object collectionValue, DelegateExecution execution) {
-    	JSONArray jsonArray = new JSONArray((String) collectionValue);
-    	ArrayList<String> collection = new ArrayList<String>();
-    	JSONObject jsonObj = null;
-
-    	for (int i=0; i < jsonArray.length(); i++) {
-    		jsonObj = jsonArray.getJSONObject(i);
-    		collection.add(jsonObj.getString("principal"));
-    	}
-
-		return collection;
-	}
+    @Override
+    @SuppressWarnings("rawtypes")
+    public Collection resolveCollection(Object collectionValue, DelegateExecution execution) {
+        ObjectMapper objectMapper = CommandContextUtil.getProcessEngineConfiguration().getObjectMapper();
+        try {
+            JsonNode jsonValue = objectMapper.readTree((String) collectionValue);
+            
+            ArrayList<String> collection = new ArrayList<>();
+    
+            for (JsonNode itemValue : jsonValue) {
+                collection.add(itemValue.get("principal").asText());
+            }
+    
+            return collection;
+            
+        } catch (Exception e) {
+            throw new FlowableException("Error resolving collection " + collectionValue, e);
+        }
+    }
 }

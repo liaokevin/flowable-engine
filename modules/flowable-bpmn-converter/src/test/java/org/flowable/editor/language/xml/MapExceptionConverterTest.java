@@ -28,6 +28,7 @@ public class MapExceptionConverterTest extends AbstractConverterTest {
 
     String resourceName;
 
+    @Override
     protected String getResource() {
         return resourceName;
     }
@@ -36,7 +37,7 @@ public class MapExceptionConverterTest extends AbstractConverterTest {
     public void testMapExceptionWithInvalidHasChildren() throws Exception {
         resourceName = "mapException/mapExceptionInvalidHasChildrenModel.bpmn";
         try {
-            BpmnModel bpmnModel = readXMLFile();
+            readXMLFile();
             fail("No exception is thrown for mapExecution with invalid boolean for hasChildren");
         } catch (XMLException x) {
             assertTrue(x.getMessage().indexOf("is not valid boolean") != -1);
@@ -50,8 +51,7 @@ public class MapExceptionConverterTest extends AbstractConverterTest {
     public void testMapExceptionWithNoErrorCode() throws Exception {
         resourceName = "mapException/mapExceptionNoErrorCode.bpmn";
         try {
-
-            BpmnModel bpmnModel = readXMLFile();
+            readXMLFile();
             fail("No exception is thrown for mapExecution with no Error Code");
         } catch (XMLException x) {
             assertTrue(x.getMessage().indexOf("No errorCode defined") != -1);

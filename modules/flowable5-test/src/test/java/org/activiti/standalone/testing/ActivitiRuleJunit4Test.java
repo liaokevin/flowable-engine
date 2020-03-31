@@ -43,7 +43,7 @@ public class ActivitiRuleJunit4Test {
         runtimeService.startProcessInstanceByKey("ruleUsage");
 
         TaskService taskService = activitiRule.getTaskService();
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("My Task", task.getName());
 
         taskService.complete(task.getId());
@@ -63,7 +63,7 @@ public class ActivitiRuleJunit4Test {
         // now there should be one job in the database:
         assertEquals(1, managementService.createJobQuery().count());
 
-        JobTestHelper.waitForJobExecutorToProcessAllJobs(activitiRule, 5000L, 500L);
+        JobTestHelper.waitForJobExecutorToProcessAllJobs(activitiRule, 7000L, 500L);
 
         // the job is done
         assertEquals(0, managementService.createJobQuery().count());

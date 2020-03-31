@@ -15,20 +15,26 @@ package org.flowable.engine.impl.bpmn.behavior;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.flowable.bpmn.model.FieldExtension;
 import org.flowable.bpmn.model.Task;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.delegate.Expression;
+import org.flowable.common.engine.impl.el.ExpressionManager;
+import org.flowable.dmn.api.DecisionExecutionAuditContainer;
 import org.flowable.dmn.api.DmnRuleService;
+import org.flowable.dmn.api.ExecuteDecisionBuilder;
 import org.flowable.engine.DynamicBpmnConstants;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.DelegateHelper;
+import org.flowable.engine.impl.bpmn.helper.DynamicPropertyUtil;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.context.BpmnOverrideContext;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.impl.util.ProcessDefinitionUtil;
+import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.repository.ProcessDefinition;
-import org.flowable.variable.service.impl.el.ExpressionManager;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +46,9 @@ public class DmnActivityBehavior extends TaskActivityBehavior {
     private static final long serialVersionUID = 1L;
 
     protected static final String EXPRESSION_DECISION_TABLE_REFERENCE_KEY = "decisionTableReferenceKey";
+    protected static final String EXPRESSION_DECISION_TABLE_THROW_ERROR_FLAG = "decisionTaskThrowErrorOnNoHits";
+    protected static final String EXPRESSION_DECISION_TABLE_FALLBACK_TO_DEFAULT_TENANT = "fallbackToDefaultTenant";
+    protected static final String EXPRESSION_DECISION_TABLE_SAME_DEPLOYMENT = "sameDeployment";
 
     protected Task task;
 
@@ -47,6 +56,7 @@ public class DmnActivityBehavior extends TaskActivityBehavior {
         this.task = task;
     }
 
+    @Override
     public void execute(DelegateExecution execution) {
         FieldExtension fieldExtension = DelegateHelper.getFlowElementField(execution, EXPRESSION_DECISION_TABLE_REFERENCE_KEY);
         if (fieldExtension == null || ((fieldExtension.getStringValue() == null || fieldExtension.getStringValue().length() == 0) &&
@@ -68,7 +78,7 @@ public class DmnActivityBehavior extends TaskActivityBehavior {
 
         if (processEngineConfiguration.isEnableProcessDefinitionInfoCache()) {
             ObjectNode taskElementProperties = BpmnOverrideContext.getBpmnOverrideElementProperties(task.getId(), execution.getProcessDefinitionId());
-            activeDecisionTableKey = getActiveValue(activeDecisionTableKey, DynamicBpmnConstants.DMN_TASK_DECISION_TABLE_KEY, taskElementProperties);
+            activeDecisionTableKey = DynamicPropertyUtil.getActiveValue(activeDecisionTableKey, DynamicBpmnConstants.DMN_TASK_DECISION_TABLE_KEY, taskElementProperties);
         }
 
         String finaldecisionTableKeyValue = null;
@@ -85,23 +95,91 @@ public class DmnActivityBehavior extends TaskActivityBehavior {
             throw new FlowableIllegalArgumentException("decisionTableReferenceKey expression resolves to an empty value: " + decisionTableKeyValue);
         }
 
-        ProcessDefinition processDefinition = ProcessDefinitionUtil.getProcessDefinition(execution.getProcessDefinitionId());
-
         DmnRuleService ruleService = CommandContextUtil.getDmnRuleService();
 
-        List<Map<String, Object>> executionResult = ruleService.createExecuteDecisionBuilder()
-                        .decisionKey(finaldecisionTableKeyValue)
-                        .parentDeploymentId(processDefinition.getDeploymentId())
-                        .instanceId(execution.getProcessInstanceId())
-                        .executionId(execution.getId())
-                        .activityId(task.getId())
-                        .variables(execution.getVariables())
-                        .tenantId(execution.getTenantId())
-                        .execute();
+        ExecuteDecisionBuilder executeDecisionBuilder = ruleService.createExecuteDecisionBuilder()
+            .decisionKey(finaldecisionTableKeyValue)
+            .instanceId(execution.getProcessInstanceId())
+            .executionId(execution.getId())
+            .activityId(task.getId())
+            .variables(execution.getVariables())
+            .tenantId(execution.getTenantId());
+
+        applyFallbackToDefaultTenant(execution, executeDecisionBuilder);
+        applyParentDeployment(execution, executeDecisionBuilder, processEngineConfiguration);
+
+        DecisionExecutionAuditContainer decisionExecutionAuditContainer = executeDecisionBuilder.executeWithAuditTrail();
+
+        if (decisionExecutionAuditContainer.isFailed()) {
+            throw new FlowableException("DMN decision table with key " + finaldecisionTableKeyValue + " execution failed. Cause: " + decisionExecutionAuditContainer.getExceptionMessage());
+        }
+
+        /*Throw error if there were no rules hit when the flag indicates to do this.*/
+        FieldExtension throwErrorFieldExtension = DelegateHelper.getFlowElementField(execution, EXPRESSION_DECISION_TABLE_THROW_ERROR_FLAG);
+        if (throwErrorFieldExtension != null) {
+            String throwErrorString = null;
+            if (StringUtils.isNotEmpty(throwErrorFieldExtension.getStringValue())) {
+                throwErrorString = throwErrorFieldExtension.getStringValue();
                 
-        setVariablesOnExecution(executionResult, finaldecisionTableKeyValue, execution, processEngineConfiguration.getObjectMapper());
+            } else if (StringUtils.isNotEmpty(throwErrorFieldExtension.getExpression())) {
+                throwErrorString = throwErrorFieldExtension.getExpression();
+            }
+            
+            if (decisionExecutionAuditContainer.getDecisionResult().isEmpty() && throwErrorString != null) {
+                if ("true".equalsIgnoreCase(throwErrorString)) {
+                    throw new FlowableException("DMN decision table with key " + finaldecisionTableKeyValue + " did not hit any rules for the provided input.");
+                    
+                } else if (!"false".equalsIgnoreCase(throwErrorString)) {
+                    Expression expression = expressionManager.createExpression(throwErrorString);
+                    Object expressionValue = expression.getValue(execution);
+                    
+                    if (expressionValue instanceof Boolean && ((Boolean) expressionValue)) {
+                        throw new FlowableException("DMN decision table with key " + finaldecisionTableKeyValue + " did not hit any rules for the provided input.");
+                    }
+                }
+            }
+        }
+
+        if (processEngineConfiguration.getDecisionTableVariableManager() != null) {
+            processEngineConfiguration.getDecisionTableVariableManager().setVariablesOnExecution(decisionExecutionAuditContainer.getDecisionResult(), 
+                            finaldecisionTableKeyValue, execution, processEngineConfiguration.getObjectMapper());
+            
+        } else {
+            setVariablesOnExecution(decisionExecutionAuditContainer.getDecisionResult(), finaldecisionTableKeyValue, 
+                            execution, processEngineConfiguration.getObjectMapper());
+        }
 
         leave(execution);
+    }
+
+    protected void applyFallbackToDefaultTenant(DelegateExecution execution, ExecuteDecisionBuilder executeDecisionBuilder) {
+        FieldExtension fallbackfieldExtension = DelegateHelper.getFlowElementField(execution, EXPRESSION_DECISION_TABLE_FALLBACK_TO_DEFAULT_TENANT);
+        if (fallbackfieldExtension != null && ((fallbackfieldExtension.getStringValue() != null && fallbackfieldExtension.getStringValue().length() != 0))) {
+            String fallbackToDefaultTenant = fallbackfieldExtension.getStringValue();
+            if (StringUtils.isNotEmpty(fallbackToDefaultTenant) && Boolean.parseBoolean(fallbackToDefaultTenant)) {
+                executeDecisionBuilder.fallbackToDefaultTenant();
+            }
+        }
+    }
+
+    protected void applyParentDeployment(DelegateExecution execution, ExecuteDecisionBuilder executeDecisionBuilder,
+            ProcessEngineConfigurationImpl processEngineConfiguration) {
+
+        FieldExtension sameDeploymentFieldExtension = DelegateHelper.getFlowElementField(execution, EXPRESSION_DECISION_TABLE_SAME_DEPLOYMENT);
+        String parentDeploymentId;
+        if (sameDeploymentFieldExtension != null) {
+            if (Boolean.parseBoolean(sameDeploymentFieldExtension.getStringValue())) {
+                parentDeploymentId = ProcessDefinitionUtil.getDefinitionDeploymentId(execution.getProcessDefinitionId(), processEngineConfiguration);
+            } else {
+                // If same deployment has not been requested then don't pass parentDeploymentId
+                parentDeploymentId = null;
+            }
+        } else {
+            // backwards compatibility (always apply parent deployment id)
+            parentDeploymentId = ProcessDefinitionUtil.getDefinitionDeploymentId(execution.getProcessDefinitionId(), processEngineConfiguration);
+
+        }
+        executeDecisionBuilder.parentDeploymentId(parentDeploymentId);
     }
 
     protected void setVariablesOnExecution(List<Map<String, Object>> executionResult, String decisionKey, DelegateExecution execution, ObjectMapper objectMapper) {

@@ -28,6 +28,7 @@ public class UserTask extends Task {
     protected String owner;
     protected String priority;
     protected String formKey;
+    protected boolean sameDeployment = true;
     protected String dueDate;
     protected String businessCalendarName;
     protected String category;
@@ -37,6 +38,7 @@ public class UserTask extends Task {
     protected List<FormProperty> formProperties = new ArrayList<>();
     protected List<FlowableListener> taskListeners = new ArrayList<>();
     protected String skipExpression;
+    protected String validateFormFields;
 
     protected Map<String, Set<String>> customUserIdentityLinks = new HashMap<>();
     protected Map<String, Set<String>> customGroupIdentityLinks = new HashMap<>();
@@ -73,6 +75,14 @@ public class UserTask extends Task {
 
     public void setFormKey(String formKey) {
         this.formKey = formKey;
+    }
+
+    public boolean isSameDeployment() {
+        return sameDeployment;
+    }
+
+    public void setSameDeployment(boolean sameDeployment) {
+        this.sameDeployment = sameDeployment;
     }
 
     public String getDueDate() {
@@ -197,6 +207,15 @@ public class UserTask extends Task {
         this.skipExpression = skipExpression;
     }
 
+    public String getValidateFormFields() {
+        return validateFormFields;
+    }
+
+    public void setValidateFormFields(String validateFormFields) {
+        this.validateFormFields = validateFormFields;
+    }
+
+    @Override
     public UserTask clone() {
         UserTask clone = new UserTask();
         clone.setValues(this);
@@ -208,11 +227,13 @@ public class UserTask extends Task {
         setAssignee(otherElement.getAssignee());
         setOwner(otherElement.getOwner());
         setFormKey(otherElement.getFormKey());
+        setSameDeployment(otherElement.isSameDeployment());
         setDueDate(otherElement.getDueDate());
         setPriority(otherElement.getPriority());
         setCategory(otherElement.getCategory());
         setExtensionId(otherElement.getExtensionId());
         setSkipExpression(otherElement.getSkipExpression());
+        setValidateFormFields(otherElement.getValidateFormFields());
 
         setCandidateGroups(new ArrayList<>(otherElement.getCandidateGroups()));
         setCandidateUsers(new ArrayList<>(otherElement.getCandidateUsers()));

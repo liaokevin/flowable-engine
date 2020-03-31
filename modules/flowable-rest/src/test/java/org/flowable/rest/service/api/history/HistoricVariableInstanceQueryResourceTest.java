@@ -13,6 +13,9 @@
 
 package org.flowable.rest.service.api.history;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,7 +28,8 @@ import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,6 +46,7 @@ public class HistoricVariableInstanceQueryResourceTest extends BaseSpringRestTes
     /**
      * Test querying historic variable instance. POST query/historic-variable-instances
      */
+    @Test
     @Deployment
     public void testQueryVariableInstances() throws Exception {
         HashMap<String, Object> processVariables = new HashMap<>();
@@ -149,7 +154,7 @@ public class HistoricVariableInstanceQueryResourceTest extends BaseSpringRestTes
                 if (variableName.equals(name)) {
                     variableFound = true;
                     if (variableValue instanceof Boolean) {
-                        assertTrue("Variable value is not equal", variableNode.get("value").asBoolean() == (Boolean) variableValue);
+                        assertEquals("Variable value is not equal", variableNode.get("value").asBoolean(), (boolean) (Boolean) variableValue);
                     } else if (variableValue instanceof Integer) {
                         assertEquals("Variable value is not equal", variableNode.get("value").asInt(), (int) (Integer) variableValue);
                     } else {

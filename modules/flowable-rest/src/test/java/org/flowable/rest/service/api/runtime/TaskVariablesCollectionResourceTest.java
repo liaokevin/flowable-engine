@@ -13,10 +13,18 @@
 
 package org.flowable.rest.service.api.runtime;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
@@ -33,22 +41,28 @@ import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.HttpMultipartHelper;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import net.javacrumbs.jsonunit.assertj.JsonAssertions;
+import net.javacrumbs.jsonunit.core.Option;
+
 /**
  * Test for all REST-operations related to Task variables.
  * 
  * @author Frederik Heremans
+ * @author Filip Hrisafov
  */
 public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase {
 
     /**
      * Test getting all task variables. GET runtime/tasks/{taskId}/variables
      */
+    @Test
     @Deployment
     public void testGetTaskVariables() throws Exception {
 
@@ -63,6 +77,9 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
         processVariables.put("doubleProcVar", 99.99);
         processVariables.put("booleanProcVar", Boolean.TRUE);
         processVariables.put("dateProcVar", cal.getTime());
+        processVariables.put("instantProcVar", Instant.parse("2019-12-13T12:32:45.583345Z"));
+        processVariables.put("localDateProcVar", LocalDate.parse("2020-01-18"));
+        processVariables.put("localDateTimeProcVar", LocalDateTime.parse("2020-01-18T16:18:45"));
         processVariables.put("byteArrayProcVar", "Some raw bytes".getBytes());
         processVariables.put("overlappingVariable", "process-value");
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", processVariables);
@@ -78,6 +95,9 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
         taskVariables.put("doubleTaskVar", 99.99);
         taskVariables.put("booleanTaskVar", Boolean.TRUE);
         taskVariables.put("dateTaskVar", cal.getTime());
+        taskVariables.put("instantTaskVar", Instant.parse("2019-12-13T12:32:45.583345Z"));
+        taskVariables.put("localDateTaskVar", LocalDate.parse("2020-01-18"));
+        taskVariables.put("localDateTimeTaskVar", LocalDateTime.parse("2020-01-18T16:18:45"));
         taskVariables.put("byteArrayTaskVar", "Some raw bytes".getBytes());
         taskVariables.put("overlappingVariable", "task-value");
         taskService.setVariablesLocal(task.getId(), taskVariables);
@@ -89,8 +109,36 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
         JsonNode responseNode = objectMapper.readTree(response.getEntity().getContent());
         closeResponse(response);
         assertNotNull(responseNode);
+        JsonAssertions.assertThatJson(responseNode)
+            .when(Option.IGNORING_EXTRA_FIELDS, Option.IGNORING_ARRAY_ORDER)
+            .isEqualTo("["
+                + "  { name: 'stringProcVar', type: 'string', value: 'This is a ProcVariable', scope: 'global' },"
+                + "  { name: 'intProcVar', type: 'integer', value: 123, scope: 'global' },"
+                + "  { name: 'longProcVar', type: 'long', value: 1234, scope: 'global' },"
+                + "  { name: 'shortProcVar', type: 'short', value: 123, scope: 'global' },"
+                + "  { name: 'doubleProcVar', type: 'double', value: 99.99, scope: 'global' },"
+                + "  { name: 'booleanProcVar', type: 'boolean', value: true, scope: 'global' },"
+                + "  { name: 'dateProcVar', type: 'date', value: '${json-unit.any-string}', scope: 'global' },"
+                + "  { name: 'instantProcVar', type: 'instant', value: '2019-12-13T12:32:45.583Z', scope: 'global' },"
+                + "  { name: 'localDateProcVar', type: 'localDate', value: '2020-01-18', scope: 'global' },"
+                + "  { name: 'localDateTimeProcVar', type: 'localDateTime', value: '2020-01-18T16:18:45', scope: 'global' },"
+                + "  { name: 'byteArrayProcVar', type: 'binary', value: null, scope: 'global' },"
+
+                + "  { name: 'stringTaskVar', type: 'string', value: 'This is a TaskVariable', scope: 'local' },"
+                + "  { name: 'intTaskVar', type: 'integer', value: 123, scope: 'local' },"
+                + "  { name: 'longTaskVar', type: 'long', value: 1234, scope: 'local' },"
+                + "  { name: 'shortTaskVar', type: 'short', value: 123, scope: 'local' },"
+                + "  { name: 'doubleTaskVar', type: 'double', value: 99.99, scope: 'local' },"
+                + "  { name: 'booleanTaskVar', type: 'boolean', value: true, scope: 'local' },"
+                + "  { name: 'dateTaskVar', type: 'date', value: '${json-unit.any-string}', scope: 'local' },"
+                + "  { name: 'instantTaskVar', type: 'instant', value: '2019-12-13T12:32:45.583Z', scope: 'local' },"
+                + "  { name: 'localDateTaskVar', type: 'localDate', value: '2020-01-18', scope: 'local' },"
+                + "  { name: 'localDateTimeTaskVar', type: 'localDateTime', value: '2020-01-18T16:18:45', scope: 'local' },"
+                + "  { name: 'byteArrayTaskVar', type: 'binary', value: null, scope: 'local' },"
+                + "  { name: 'overlappingVariable', type: 'string', value: 'task-value', scope: 'local' }"
+                + "]");
         assertTrue(responseNode.isArray());
-        assertEquals(17, responseNode.size());
+        assertEquals(23, responseNode.size());
 
         // Overlapping variable should contain task-value AND be defined as
         // "local"
@@ -113,7 +161,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
         closeResponse(response);
         assertNotNull(responseNode);
         assertTrue(responseNode.isArray());
-        assertEquals(9, responseNode.size());
+        assertEquals(12, responseNode.size());
 
         for (int i = 0; i < responseNode.size(); i++) {
             JsonNode var = responseNode.get(i);
@@ -127,7 +175,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
         closeResponse(response);
         assertNotNull(responseNode);
         assertTrue(responseNode.isArray());
-        assertEquals(9, responseNode.size());
+        assertEquals(12, responseNode.size());
 
         foundOverlapping = false;
         for (int i = 0; i < responseNode.size(); i++) {
@@ -144,6 +192,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
     /**
      * Test creating a single task variable. POST runtime/tasks/{taskId}/variables
      */
+    @Test
     @Deployment
     public void testCreateSingleTaskVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
@@ -218,6 +267,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
     /**
      * Test creating a single task variable using a binary stream. POST runtime/tasks/{taskId}/variables
      */
+    @Test
     public void testCreateSingleBinaryTaskVariable() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -241,7 +291,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
             assertTrue(responseNode.get("value").isNull());
             assertEquals("local", responseNode.get("scope").asText());
             assertEquals("binary", responseNode.get("type").asText());
-            assertNotNull(responseNode.get("valueUrl").isNull());
+            assertNotNull(responseNode.get("valueUrl"));
             assertTrue(responseNode.get("valueUrl").asText().endsWith(RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLE_DATA, task.getId(), "binaryVariable")));
 
             // Check actual value of variable in engine
@@ -262,6 +312,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
     /**
      * Test creating a single task variable using a binary stream. POST runtime/tasks/{taskId}/variables
      */
+    @Test
     public void testCreateSingleSerializableTaskVariable() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -295,7 +346,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
             assertTrue(responseNode.get("value").isNull());
             assertEquals("local", responseNode.get("scope").asText());
             assertEquals("serializable", responseNode.get("type").asText());
-            assertNotNull(responseNode.get("valueUrl").isNull());
+            assertNotNull(responseNode.get("valueUrl"));
             assertTrue(responseNode.get("valueUrl").asText().endsWith(RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLE_DATA, task.getId(), "serializableVariable")));
 
             // Check actual value of variable in engine
@@ -315,6 +366,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
     /**
      * Test creating a single task variable, testing edge case exceptions. POST runtime/tasks/{taskId}/variables
      */
+    @Test
     public void testCreateSingleTaskVariableEdgeCases() throws Exception {
         try {
             // Test adding variable to unexisting task
@@ -327,7 +379,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             HttpPost httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, "unexisting"));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_NOT_FOUND));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_NOT_FOUND));
 
             // Test trying to create already existing variable
             Task task = taskService.newTask();
@@ -336,7 +388,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_CONFLICT));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_CONFLICT));
 
             // Test setting global variable on standalone task
             variableNode.put("name", "myVariable");
@@ -346,7 +398,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
 
             // Test creating nameless variable
             variableNode.removeAll();
@@ -354,18 +406,18 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
 
             // Test passing in empty array
             requestNode.removeAll();
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
 
             // Test passing in object instead of array
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(objectMapper.createObjectNode().toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_BAD_REQUEST));
 
         } finally {
             // Clean adhoc-tasks even if test fails
@@ -379,6 +431,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
     /**
      * Test creating a single task variable, testing default types when omitted. POST runtime/tasks/{taskId}/variables
      */
+    @Test
     public void testCreateSingleTaskVariableDefaultTypes() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -393,7 +446,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             HttpPost httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_CREATED));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_CREATED));
 
             assertEquals("String value", taskService.getVariable(task.getId(), "stringVar"));
 
@@ -404,7 +457,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_CREATED));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_CREATED));
 
             assertEquals(123, taskService.getVariable(task.getId(), "integerVar"));
 
@@ -415,7 +468,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_CREATED));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_CREATED));
 
             assertEquals(123.456, taskService.getVariable(task.getId(), "doubleVar"));
 
@@ -426,7 +479,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
 
             httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            closeResponse(executeBinaryRequest(httpPost, HttpStatus.SC_CREATED));
+            closeResponse(executeRequest(httpPost, HttpStatus.SC_CREATED));
 
             assertEquals(Boolean.TRUE, taskService.getVariable(task.getId(), "booleanVar"));
 
@@ -442,6 +495,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
     /**
      * Test creating a multiple task variable in a single call. POST runtime/tasks/{taskId}/variables
      */
+    @Test
     public void testCreateMultipleTaskVariables() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -504,7 +558,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
             // Create local variables with a single request
             HttpPost httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLES_COLLECTION, task.getId()));
             httpPost.setEntity(new StringEntity(requestNode.toString()));
-            CloseableHttpResponse response = executeBinaryRequest(httpPost, HttpStatus.SC_CREATED);
+            CloseableHttpResponse response = executeRequest(httpPost, HttpStatus.SC_CREATED);
             JsonNode responseNode = objectMapper.readTree(response.getEntity().getContent());
             closeResponse(response);
             assertNotNull(responseNode);
@@ -535,6 +589,7 @@ public class TaskVariablesCollectionResourceTest extends BaseSpringRestTestCase 
     /**
      * Test deleting all local task variables. DELETE runtime/tasks/{taskId}/variables
      */
+    @Test
     @Deployment
     public void testDeleteAllLocalVariables() throws Exception {
         // Start process with all types of variables

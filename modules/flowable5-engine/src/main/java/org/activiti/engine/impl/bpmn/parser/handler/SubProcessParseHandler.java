@@ -20,17 +20,18 @@ import org.flowable.bpmn.constants.BpmnXMLConstants;
 import org.flowable.bpmn.model.BaseElement;
 import org.flowable.bpmn.model.EventSubProcess;
 import org.flowable.bpmn.model.SubProcess;
-import org.flowable.engine.impl.bpmn.data.IOSpecification;
 
 /**
  * @author Joram Barrez
  */
 public class SubProcessParseHandler extends AbstractActivityBpmnParseHandler<SubProcess> {
 
+    @Override
     protected Class<? extends BaseElement> getHandledType() {
         return SubProcess.class;
     }
 
+    @Override
     protected void executeParse(BpmnParse bpmnParse, SubProcess subProcess) {
 
         ActivityImpl activity = createActivityOnScope(bpmnParse, subProcess, BpmnXMLConstants.ELEMENT_SUBPROCESS, bpmnParse.getCurrentScope());
@@ -63,12 +64,6 @@ public class SubProcessParseHandler extends AbstractActivityBpmnParseHandler<Sub
 
         bpmnParse.removeCurrentScope();
         bpmnParse.removeCurrentSubProcess();
-
-        if (subProcess.getIoSpecification() != null) {
-            IOSpecification ioSpecification = createIOSpecification(bpmnParse, subProcess.getIoSpecification());
-            activity.setIoSpecification(ioSpecification);
-        }
-
     }
 
 }

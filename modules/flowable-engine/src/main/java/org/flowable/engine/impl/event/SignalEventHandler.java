@@ -16,13 +16,14 @@ package org.flowable.engine.impl.event;
 import java.util.Map;
 
 import org.flowable.bpmn.model.FlowElement;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.impl.persistence.entity.EventSubscriptionEntity;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.scope.ScopeTypes;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.impl.util.ProcessDefinitionUtil;
 import org.flowable.engine.impl.util.ProcessInstanceHelper;
 import org.flowable.engine.repository.ProcessDefinition;
+import org.flowable.eventsubscription.service.impl.persistence.entity.EventSubscriptionEntity;
 
 /**
  * @author Daniel Meyer
@@ -32,6 +33,7 @@ public class SignalEventHandler extends AbstractEventHandler {
 
     public static final String EVENT_HANDLER_TYPE = "signal";
 
+    @Override
     public String getEventHandlerType() {
         return EVENT_HANDLER_TYPE;
     }
@@ -67,6 +69,9 @@ public class SignalEventHandler extends AbstractEventHandler {
             ProcessInstanceHelper processInstanceHelper = CommandContextUtil.getProcessEngineConfiguration(commandContext).getProcessInstanceHelper();
             processInstanceHelper.createAndStartProcessInstanceWithInitialFlowElement(processDefinition, null, null, flowElement, process, variables, null, true);
 
+        } else if (eventSubscription.getScopeId() != null && ScopeTypes.CMMN.equals(eventSubscription.getScopeType())) {
+            CommandContextUtil.getProcessEngineConfiguration(commandContext).getCaseInstanceService().handleSignalEvent(eventSubscription);
+        
         } else {
             throw new FlowableException("Invalid signal handling: no execution nor process definition set");
         }

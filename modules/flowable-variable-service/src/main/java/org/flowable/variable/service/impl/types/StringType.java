@@ -12,33 +12,42 @@
  */
 package org.flowable.variable.service.impl.types;
 
+import org.flowable.variable.api.types.ValueFields;
+import org.flowable.variable.api.types.VariableType;
+
 /**
  * @author Tom Baeyens
  */
 public class StringType implements VariableType {
 
+    public static final String TYPE_NAME = "string";
     private final int maxLength;
 
     public StringType(int maxLength) {
         this.maxLength = maxLength;
     }
 
+    @Override
     public String getTypeName() {
-        return "string";
+        return TYPE_NAME;
     }
 
+    @Override
     public boolean isCachable() {
         return true;
     }
 
+    @Override
     public Object getValue(ValueFields valueFields) {
         return valueFields.getTextValue();
     }
 
+    @Override
     public void setValue(Object value, ValueFields valueFields) {
         valueFields.setTextValue((String) value);
     }
 
+    @Override
     public boolean isAbleToStore(Object value) {
         if (value == null) {
             return true;

@@ -12,13 +12,15 @@
  */
 package org.flowable.engine.impl.cmd;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.compatibility.Flowable5CompatibilityHandler;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.impl.util.Flowable5Util;
+import org.flowable.engine.impl.util.IdentityLinkUtil;
 import org.flowable.engine.impl.util.TaskHelper;
-import org.flowable.identitylink.service.IdentityLinkType;
+import org.flowable.identitylink.api.IdentityLinkType;
+import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEntity;
 import org.flowable.task.service.impl.persistence.entity.TaskEntity;
 
 /**
@@ -28,8 +30,8 @@ public class AddIdentityLinkCmd extends NeedsActiveTaskCmd<Void> {
 
     private static final long serialVersionUID = 1L;
 
-    public static int IDENTITY_USER = 1;
-    public static int IDENTITY_GROUP = 2;
+    public static final int IDENTITY_USER = 1;
+    public static final int IDENTITY_GROUP = 2;
 
     protected String identityId;
 
@@ -66,6 +68,7 @@ public class AddIdentityLinkCmd extends NeedsActiveTaskCmd<Void> {
         }
     }
 
+    @Override
     protected Void execute(CommandContext commandContext, TaskEntity task) {
 
         if (task.getProcessDefinitionId() != null && Flowable5Util.isFlowable5ProcessDefinitionId(commandContext, task.getProcessDefinitionId())) {
@@ -100,15 +103,18 @@ public class AddIdentityLinkCmd extends NeedsActiveTaskCmd<Void> {
             if (oldOwnerId != null && oldOwnerId.equals(identityId)) {
                 return null;
             }
-            
+
             TaskHelper.changeTaskOwner(task, identityId);
             assignedToNoOne = identityId == null;
 
         } else if (IDENTITY_USER == identityIdType) {
-            TaskHelper.addUserIdentityLink(task, identityId, identityType);
+            IdentityLinkEntity identityLinkEntity = CommandContextUtil.getIdentityLinkService().createTaskIdentityLink(task.getId(), identityId, null, identityType);
+            IdentityLinkUtil.handleTaskIdentityLinkAddition(task, identityLinkEntity);
             
         } else if (IDENTITY_GROUP == identityIdType) {
-            TaskHelper.addGroupIdentityLink(task, identityId, identityType);
+            IdentityLinkEntity identityLinkEntity = CommandContextUtil.getIdentityLinkService().createTaskIdentityLink(task.getId(), null, identityId, identityType);
+            IdentityLinkUtil.handleTaskIdentityLinkAddition(task, identityLinkEntity);
+
         }
 
         boolean forceNullUserId = false;
@@ -124,9 +130,9 @@ public class AddIdentityLinkCmd extends NeedsActiveTaskCmd<Void> {
         }
 
         if (IDENTITY_USER == identityIdType) {
-            CommandContextUtil.getHistoryManager(commandContext).createUserIdentityLinkComment(taskId, identityId, identityType, true, forceNullUserId);
+            CommandContextUtil.getHistoryManager(commandContext).createUserIdentityLinkComment(task, identityId, identityType, true, forceNullUserId);
         } else {
-            CommandContextUtil.getHistoryManager(commandContext).createGroupIdentityLinkComment(taskId, identityId, identityType, true);
+            CommandContextUtil.getHistoryManager(commandContext).createGroupIdentityLinkComment(task, identityId, identityType, true);
         }
 
         return null;

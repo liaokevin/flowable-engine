@@ -15,11 +15,21 @@ package org.flowable.task.service.impl.persistence.entity;
 import java.util.List;
 import java.util.Map;
 
-import org.flowable.engine.common.impl.persistence.entity.EntityManager;
-import org.flowable.task.service.Task;
+import org.flowable.common.engine.impl.persistence.entity.EntityManager;
+import org.flowable.task.api.Task;
+import org.flowable.task.api.TaskBuilder;
+import org.flowable.task.api.TaskInfo;
 import org.flowable.task.service.impl.TaskQueryImpl;
 
 public interface TaskEntityManager extends EntityManager<TaskEntity> {
+
+    /**
+     * Creates {@link TaskEntity} according to {@link TaskInfo} template
+     *
+     * @param taskBuilder template to use when the task is created
+     * @return created task entity
+     */
+    TaskEntity createTask(TaskBuilder taskBuilder);
 
     void changeTaskAssignee(TaskEntity taskEntity, String assignee);
 
@@ -28,6 +38,10 @@ public interface TaskEntityManager extends EntityManager<TaskEntity> {
     List<TaskEntity> findTasksByExecutionId(String executionId);
 
     List<TaskEntity> findTasksByProcessInstanceId(String processInstanceId);
+    
+    List<TaskEntity> findTasksByScopeIdAndScopeType(String scopeId, String scopeType);
+    
+    List<TaskEntity> findTasksBySubScopeIdAndScopeType(String subScopeId, String scopeType);
 
     List<Task> findTasksByQueryCriteria(TaskQueryImpl taskQuery);
 
@@ -44,4 +58,6 @@ public interface TaskEntityManager extends EntityManager<TaskEntity> {
     void updateTaskTenantIdForDeployment(String deploymentId, String newTenantId);
     
     void updateAllTaskRelatedEntityCountFlags(boolean configProperty);
+    
+    void deleteTasksByExecutionId(String executionId);
 }

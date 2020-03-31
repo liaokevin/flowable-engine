@@ -15,13 +15,13 @@ package org.flowable.job.service.impl.persistence.entity.data.impl;
 import java.util.HashMap;
 import java.util.List;
 
-import org.flowable.engine.common.impl.db.CachedEntityMatcher;
-import org.flowable.job.service.Job;
-import org.flowable.job.service.JobServiceConfiguration;
+import org.flowable.common.engine.impl.db.AbstractDataManager;
+import org.flowable.common.engine.impl.db.DbSqlSession;
+import org.flowable.common.engine.impl.persistence.cache.CachedEntityMatcher;
+import org.flowable.job.api.Job;
 import org.flowable.job.service.impl.DeadLetterJobQueryImpl;
 import org.flowable.job.service.impl.persistence.entity.DeadLetterJobEntity;
 import org.flowable.job.service.impl.persistence.entity.DeadLetterJobEntityImpl;
-import org.flowable.job.service.impl.persistence.entity.data.AbstractDataManager;
 import org.flowable.job.service.impl.persistence.entity.data.DeadLetterJobDataManager;
 import org.flowable.job.service.impl.persistence.entity.data.impl.cachematcher.DeadLetterJobsByExecutionIdMatcher;
 
@@ -31,10 +31,6 @@ import org.flowable.job.service.impl.persistence.entity.data.impl.cachematcher.D
 public class MybatisDeadLetterJobDataManager extends AbstractDataManager<DeadLetterJobEntity> implements DeadLetterJobDataManager {
 
     protected CachedEntityMatcher<DeadLetterJobEntity> deadLetterByExecutionIdMatcher = new DeadLetterJobsByExecutionIdMatcher();
-
-    public MybatisDeadLetterJobDataManager(JobServiceConfiguration jobServiceConfiguration) {
-        super(jobServiceConfiguration);
-    }
 
     @Override
     public Class<? extends DeadLetterJobEntity> getManagedEntityClass() {
@@ -60,7 +56,20 @@ public class MybatisDeadLetterJobDataManager extends AbstractDataManager<DeadLet
 
     @Override
     public List<DeadLetterJobEntity> findJobsByExecutionId(String executionId) {
-        return getList("selectDeadLetterJobsByExecutionId", executionId, deadLetterByExecutionIdMatcher, true);
+        DbSqlSession dbSqlSession = getDbSqlSession();
+        
+        // If the execution has been inserted in the same command execution as this query, there can't be any in the database 
+        if (isEntityInserted(dbSqlSession, "execution", executionId)) {
+            return getListFromCache(deadLetterByExecutionIdMatcher, executionId);
+        }
+        
+        return getList(dbSqlSession, "selectDeadLetterJobsByExecutionId", executionId, deadLetterByExecutionIdMatcher, true);
+    }
+    
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<DeadLetterJobEntity> findJobsByProcessInstanceId(final String processInstanceId) {
+        return getDbSqlSession().selectList("selectDeadLetterJobsByProcessInstanceId", processInstanceId);
     }
 
     @Override
@@ -70,5 +79,5 @@ public class MybatisDeadLetterJobDataManager extends AbstractDataManager<DeadLet
         params.put("tenantId", newTenantId);
         getDbSqlSession().update("updateDeadLetterJobTenantIdForDeployment", params);
     }
-
+    
 }

@@ -23,16 +23,18 @@ import org.flowable.bpmn.model.MessageEventDefinition;
 import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.SubProcess;
 import org.flowable.bpmn.model.ValuedDataObject;
-import org.flowable.engine.common.impl.context.Context;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.context.Context;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.history.DeleteReason;
-import org.flowable.engine.impl.persistence.entity.EventSubscriptionEntity;
-import org.flowable.engine.impl.persistence.entity.EventSubscriptionEntityManager;
+import org.flowable.engine.impl.event.EventDefinitionExpressionUtil;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntityManager;
-import org.flowable.engine.impl.persistence.entity.MessageEventSubscriptionEntity;
 import org.flowable.engine.impl.util.CommandContextUtil;
+import org.flowable.engine.impl.util.CountingEntityUtil;
+import org.flowable.eventsubscription.service.EventSubscriptionService;
+import org.flowable.eventsubscription.service.impl.persistence.entity.EventSubscriptionEntity;
+import org.flowable.eventsubscription.service.impl.persistence.entity.MessageEventSubscriptionEntity;
 
 /**
  * Implementation of the BPMN 2.0 event subprocess message start event.
@@ -49,6 +51,7 @@ public class EventSubProcessMessageStartEventActivityBehavior extends AbstractBp
         this.messageEventDefinition = messageEventDefinition;
     }
 
+    @Override
     public void execute(DelegateExecution execution) {
         StartEvent startEvent = (StartEvent) execution.getCurrentFlowElement();
         EventSubProcess eventSubProcess = (EventSubProcess) startEvent.getSubProcess();
@@ -75,17 +78,19 @@ public class EventSubProcessMessageStartEventActivityBehavior extends AbstractBp
                 ExecutionEntity childExecutionEntity = childExecutions.get(i);
                 if (!childExecutionEntity.isEnded() && !childExecutionEntity.getId().equals(executionEntity.getId())) {
                     executionEntityManager.deleteExecutionAndRelatedData(childExecutionEntity,
-                            DeleteReason.EVENT_SUBPROCESS_INTERRUPTING + "(" + startEvent.getId() + ")");
+                            DeleteReason.EVENT_SUBPROCESS_INTERRUPTING + "(" + startEvent.getId() + ")", false);
                 }
             }
 
-            EventSubscriptionEntityManager eventSubscriptionEntityManager = CommandContextUtil.getEventSubscriptionEntityManager(commandContext);
+            EventSubscriptionService eventSubscriptionService = CommandContextUtil.getEventSubscriptionService(commandContext);
             List<EventSubscriptionEntity> eventSubscriptions = executionEntity.getEventSubscriptions();
 
+            String messageName = EventDefinitionExpressionUtil.determineMessageName(commandContext, messageEventDefinition, execution);
             for (EventSubscriptionEntity eventSubscription : eventSubscriptions) {
-                if (eventSubscription instanceof MessageEventSubscriptionEntity && eventSubscription.getEventName().equals(messageEventDefinition.getMessageRef())) {
+                if (eventSubscription instanceof MessageEventSubscriptionEntity && eventSubscription.getEventName().equals(messageName)) {
 
-                    eventSubscriptionEntityManager.delete(eventSubscription);
+                    eventSubscriptionService.deleteEventSubscription(eventSubscription);
+                    CountingEntityUtil.handleDeleteEventSubscriptionEntityCount(eventSubscription);
                 }
             }
         }
@@ -95,10 +100,12 @@ public class EventSubProcessMessageStartEventActivityBehavior extends AbstractBp
         newSubProcessExecution.setEventScope(false);
         newSubProcessExecution.setScope(true);
 
+        CommandContextUtil.getActivityInstanceEntityManager(commandContext).recordActivityStart(newSubProcessExecution);
+
         ExecutionEntity outgoingFlowExecution = executionEntityManager.createChildExecution(newSubProcessExecution);
         outgoingFlowExecution.setCurrentFlowElement(startEvent);
-        
-        CommandContextUtil.getHistoryManager(commandContext).recordActivityStart(outgoingFlowExecution);
+
+        CommandContextUtil.getActivityInstanceEntityManager(commandContext).recordActivityStart(outgoingFlowExecution);
 
         leave(outgoingFlowExecution);
     }

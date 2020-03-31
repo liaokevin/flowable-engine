@@ -17,12 +17,13 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.query.AbstractQuery;
-import org.flowable.job.service.Job;
-import org.flowable.job.service.SuspendedJobQuery;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.scope.ScopeTypes;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.impl.query.AbstractQuery;
+import org.flowable.job.api.Job;
+import org.flowable.job.api.SuspendedJobQuery;
 import org.flowable.job.service.impl.util.CommandContextUtil;
 
 /**
@@ -37,7 +38,12 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
     protected String executionId;
     protected String handlerType;
     protected String processDefinitionId;
-    protected boolean retriesLeft;
+    protected String elementId;
+    protected String elementName;
+    protected String scopeId;
+    protected String subScopeId;
+    protected String scopeType;
+    protected String scopeDefinitionId;
     protected boolean executable;
     protected boolean onlyTimers;
     protected boolean onlyMessages;
@@ -50,6 +56,8 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
     protected String tenantId;
     protected String tenantIdLike;
     protected boolean withoutTenantId;
+    
+    protected boolean retriesLeft;
     protected boolean noRetriesLeft;
 
     public SuspendedJobQueryImpl() {
@@ -63,6 +71,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         super(commandExecutor);
     }
 
+    @Override
     public SuspendedJobQueryImpl jobId(String jobId) {
         if (jobId == null) {
             throw new FlowableIllegalArgumentException("Provided job id is null");
@@ -71,6 +80,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl processInstanceId(String processInstanceId) {
         if (processInstanceId == null) {
             throw new FlowableIllegalArgumentException("Provided process instance id is null");
@@ -79,6 +89,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl processDefinitionId(String processDefinitionId) {
         if (processDefinitionId == null) {
             throw new FlowableIllegalArgumentException("Provided process definition id is null");
@@ -86,7 +97,92 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         this.processDefinitionId = processDefinitionId;
         return this;
     }
+    
+    @Override
+    public SuspendedJobQueryImpl elementId(String elementId) {
+        if (elementId == null) {
+            throw new FlowableIllegalArgumentException("Provided element id is null");
+        }
+        this.elementId = elementId;
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl elementName(String elementName) {
+        if (elementName == null) {
+            throw new FlowableIllegalArgumentException("Provided element name is null");
+        }
+        this.elementName = elementName;
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl scopeId(String scopeId) {
+        if (scopeId == null) {
+            throw new FlowableIllegalArgumentException("Provided scope id is null");
+        }
+        this.scopeId = scopeId;
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl subScopeId(String subScopeId) {
+        if (scopeId == null) {
+            throw new FlowableIllegalArgumentException("Provided sub scope id is null");
+        }
+        this.subScopeId = subScopeId;
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl scopeType(String scopeType) {
+        if (scopeType == null) {
+            throw new FlowableIllegalArgumentException("Provided scope type is null");
+        }
+        this.scopeType = scopeType;
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl scopeDefinitionId(String scopeDefinitionId) {
+        if (scopeDefinitionId == null) {
+            throw new FlowableIllegalArgumentException("Provided scope definitionid is null");
+        }
+        this.scopeDefinitionId = scopeDefinitionId;
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl caseInstanceId(String caseInstanceId) {
+        if (caseInstanceId == null) {
+            throw new FlowableIllegalArgumentException("Provided case instance id is null");
+        }
+        scopeId(caseInstanceId);
+        scopeType(ScopeTypes.CMMN);
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl caseDefinitionId(String caseDefinitionId) {
+        if (caseDefinitionId == null) {
+            throw new FlowableIllegalArgumentException("Provided case definition id is null");
+        }
+        scopeDefinitionId(caseDefinitionId);
+        scopeType(ScopeTypes.CMMN);
+        return this;
+    }
+    
+    @Override
+    public SuspendedJobQueryImpl planItemInstanceId(String planItemInstanceId) {
+        if (planItemInstanceId == null) {
+            throw new FlowableIllegalArgumentException("Provided plan item instance id is null");
+        }
+        subScopeId(planItemInstanceId);
+        scopeType(ScopeTypes.CMMN);
+        return this;
+    }
 
+    @Override
     public SuspendedJobQueryImpl executionId(String executionId) {
         if (executionId == null) {
             throw new FlowableIllegalArgumentException("Provided execution id is null");
@@ -95,6 +191,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl handlerType(String handlerType) {
         if (handlerType == null) {
             throw new FlowableIllegalArgumentException("Provided handlerType is null");
@@ -103,16 +200,19 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl withRetriesLeft() {
         retriesLeft = true;
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl executable() {
         executable = true;
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl timers() {
         if (onlyMessages) {
             throw new FlowableIllegalArgumentException("Cannot combine onlyTimers() with onlyMessages() in the same query");
@@ -121,6 +221,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl messages() {
         if (onlyTimers) {
             throw new FlowableIllegalArgumentException("Cannot combine onlyTimers() with onlyMessages() in the same query");
@@ -129,6 +230,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl duedateHigherThan(Date date) {
         if (date == null) {
             throw new FlowableIllegalArgumentException("Provided date is null");
@@ -137,6 +239,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl duedateLowerThan(Date date) {
         if (date == null) {
             throw new FlowableIllegalArgumentException("Provided date is null");
@@ -169,16 +272,19 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl noRetriesLeft() {
         noRetriesLeft = true;
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl withException() {
         this.withException = true;
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl exceptionMessage(String exceptionMessage) {
         if (exceptionMessage == null) {
             throw new FlowableIllegalArgumentException("Provided exception message is null");
@@ -187,6 +293,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl jobTenantId(String tenantId) {
         if (tenantId == null) {
             throw new FlowableIllegalArgumentException("Provided tenant id is null");
@@ -195,6 +302,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl jobTenantIdLike(String tenantIdLike) {
         if (tenantIdLike == null) {
             throw new FlowableIllegalArgumentException("Provided tenant id is null");
@@ -203,6 +311,7 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
         return this;
     }
 
+    @Override
     public SuspendedJobQueryImpl jobWithoutTenantId() {
         this.withoutTenantId = true;
         return this;
@@ -210,39 +319,45 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
 
     // sorting //////////////////////////////////////////
 
+    @Override
     public SuspendedJobQuery orderByJobDuedate() {
         return orderBy(JobQueryProperty.DUEDATE);
     }
 
+    @Override
     public SuspendedJobQuery orderByExecutionId() {
         return orderBy(JobQueryProperty.EXECUTION_ID);
     }
 
+    @Override
     public SuspendedJobQuery orderByJobId() {
         return orderBy(JobQueryProperty.JOB_ID);
     }
 
+    @Override
     public SuspendedJobQuery orderByProcessInstanceId() {
         return orderBy(JobQueryProperty.PROCESS_INSTANCE_ID);
     }
 
+    @Override
     public SuspendedJobQuery orderByJobRetries() {
         return orderBy(JobQueryProperty.RETRIES);
     }
 
+    @Override
     public SuspendedJobQuery orderByTenantId() {
         return orderBy(JobQueryProperty.TENANT_ID);
     }
 
     // results //////////////////////////////////////////
 
+    @Override
     public long executeCount(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getSuspendedJobEntityManager(commandContext).findJobCountByQueryCriteria(this);
     }
 
+    @Override
     public List<Job> executeList(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getSuspendedJobEntityManager(commandContext).findJobsByQueryCriteria(this);
     }
 
@@ -302,6 +417,22 @@ public class SuspendedJobQueryImpl extends AbstractQuery<SuspendedJobQuery, Job>
 
     public String getProcessDefinitionId() {
         return processDefinitionId;
+    }
+    
+    public String getScopeId() {
+        return scopeId;
+    }
+
+    public String getSubScopeId() {
+        return subScopeId;
+    }
+
+    public String getScopeType() {
+        return scopeType;
+    }
+
+    public String getScopeDefinitionId() {
+        return scopeDefinitionId;
     }
 
     public boolean isOnlyTimers() {

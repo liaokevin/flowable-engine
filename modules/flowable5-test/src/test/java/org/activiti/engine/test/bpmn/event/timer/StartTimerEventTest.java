@@ -27,8 +27,8 @@ import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.runtime.ProcessInstanceQuery;
 import org.flowable.engine.test.Deployment;
-import org.flowable.job.service.Job;
-import org.flowable.job.service.TimerJobQuery;
+import org.flowable.job.api.Job;
+import org.flowable.job.api.TimerJobQuery;
 
 /**
  * @author Joram Barrez
@@ -47,7 +47,7 @@ public class StartTimerEventTest extends PluggableFlowableTestCase {
 
         // After setting the clock to time '50minutes and 5 seconds', the second timer should fire
         processEngineConfiguration.getClock().setCurrentTime(new Date(startTime.getTime() + ((50 * 60 * 1000) + 5000)));
-        waitForJobExecutorToProcessAllJobsAndExecutableTimerJobs(5000L, 200L);
+        waitForJobExecutorToProcessAllJobsAndExecutableTimerJobs(7000L, 200L);
 
         List<ProcessInstance> pi = runtimeService.createProcessInstanceQuery().processDefinitionKey("startTimerEventExample").list();
         assertEquals(1, pi.size());
@@ -62,7 +62,7 @@ public class StartTimerEventTest extends PluggableFlowableTestCase {
         assertEquals(1, jobQuery.count());
 
         processEngineConfiguration.getClock().setCurrentTime(new SimpleDateFormat("dd/MM/yyyy hh:mm:ss").parse("15/11/2036 11:12:30"));
-        waitForJobExecutorToProcessAllJobsAndExecutableTimerJobs(5000L, 200L);
+        waitForJobExecutorToProcessAllJobsAndExecutableTimerJobs(7000L, 200L);
 
         List<ProcessInstance> pi = runtimeService.createProcessInstanceQuery().processDefinitionKey("startTimerEventExample").list();
         assertEquals(1, pi.size());
@@ -135,7 +135,7 @@ public class StartTimerEventTest extends PluggableFlowableTestCase {
         assertEquals(1, jobQuery.count());
 
         processEngineConfiguration.getClock().setCurrentTime(new SimpleDateFormat("dd/MM/yyyy hh:mm:ss").parse("15/11/2036 11:12:30"));
-        waitForJobExecutorToProcessAllJobsAndExecutableTimerJobs(5000L, 200L);
+        waitForJobExecutorToProcessAllJobsAndExecutableTimerJobs(7000L, 200L);
 
         List<ProcessInstance> pi = runtimeService.createProcessInstanceQuery().processDefinitionKey("startTimerEventExample").list();
         assertEquals(1, pi.size());

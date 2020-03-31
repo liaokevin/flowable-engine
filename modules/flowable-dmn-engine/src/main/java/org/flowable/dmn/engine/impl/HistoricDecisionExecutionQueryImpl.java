@@ -16,18 +16,21 @@ package org.flowable.dmn.engine.impl;
 import java.util.List;
 import java.util.Set;
 
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.query.CacheAwareQuery;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.impl.query.AbstractQuery;
 import org.flowable.dmn.api.DmnHistoricDecisionExecution;
 import org.flowable.dmn.api.DmnHistoricDecisionExecutionQuery;
+import org.flowable.dmn.engine.impl.persistence.entity.HistoricDecisionExecutionEntity;
 import org.flowable.dmn.engine.impl.util.CommandContextUtil;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.query.AbstractQuery;
 
 /**
  * @author Tijs Rademakers
  */
-public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistoricDecisionExecutionQuery, DmnHistoricDecisionExecution> implements DmnHistoricDecisionExecutionQuery {
+public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistoricDecisionExecutionQuery, DmnHistoricDecisionExecution> 
+        implements DmnHistoricDecisionExecutionQuery, CacheAwareQuery<HistoricDecisionExecutionEntity> {
 
     private static final long serialVersionUID = 1L;
     protected String id;
@@ -38,6 +41,9 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
     protected String instanceId;
     protected String executionId;
     protected String activityId;
+    protected String scopeType;
+    protected String processInstanceIdWithChildren;
+    protected String caseInstanceIdWithChildren;
     protected Boolean failed;
     protected String tenantId;
     protected String tenantIdLike;
@@ -54,6 +60,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         super(commandExecutor);
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery id(String id) {
         this.id = id;
         return this;
@@ -65,6 +72,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery decisionDefinitionId(String decisionDefinitionId) {
         if (decisionDefinitionId == null) {
             throw new FlowableIllegalArgumentException("decisionDefinitionId is null");
@@ -73,6 +81,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
     
+    @Override
     public DmnHistoricDecisionExecutionQuery deploymentId(String deploymentId) {
         if (deploymentId == null) {
             throw new FlowableIllegalArgumentException("deploymentId is null");
@@ -81,6 +90,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
     
+    @Override
     public DmnHistoricDecisionExecutionQuery decisionKey(String decisionKey) {
         if (decisionKey == null) {
             throw new FlowableIllegalArgumentException("decisionKey is null");
@@ -89,6 +99,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery instanceId(String instanceId) {
         if (instanceId == null) {
             throw new FlowableIllegalArgumentException("instanceId is null");
@@ -97,6 +108,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
     
+    @Override
     public DmnHistoricDecisionExecutionQuery executionId(String executionId) {
         if (executionId == null) {
             throw new FlowableIllegalArgumentException("executionId is null");
@@ -105,6 +117,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
     
+    @Override
     public DmnHistoricDecisionExecutionQuery activityId(String activityId) {
         if (activityId == null) {
             throw new FlowableIllegalArgumentException("activityId is null");
@@ -113,6 +126,28 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
     
+    @Override
+    public DmnHistoricDecisionExecutionQuery scopeType(String scopeType) {
+        if (scopeType == null) {
+            throw new FlowableIllegalArgumentException("scopeType is null");
+        }
+        this.scopeType = scopeType;
+        return this;
+    }
+    
+    @Override
+    public DmnHistoricDecisionExecutionQuery processInstanceIdWithChildren(String processInstanceId) {
+        this.processInstanceIdWithChildren = processInstanceId;
+        return this;
+    }
+
+    @Override
+    public DmnHistoricDecisionExecutionQuery caseInstanceIdWithChildren(String caseInstanceId) {
+        this.caseInstanceIdWithChildren = caseInstanceId;
+        return this;
+    }
+    
+    @Override
     public DmnHistoricDecisionExecutionQuery failed(Boolean failed) {
         if (failed == null) {
             throw new FlowableIllegalArgumentException("failed is null");
@@ -121,6 +156,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery tenantId(String tenantId) {
         if (tenantId == null) {
             throw new FlowableIllegalArgumentException("tenantId is null");
@@ -129,6 +165,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery tenantIdLike(String tenantIdLike) {
         if (tenantIdLike == null) {
             throw new FlowableIllegalArgumentException("tenantId is null");
@@ -137,6 +174,7 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery withoutTenantId() {
         this.withoutTenantId = true;
         return this;
@@ -144,36 +182,36 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
 
     // sorting ////////////////////////////////////////////
 
+    @Override
     public DmnHistoricDecisionExecutionQuery orderByStartTime() {
         return orderBy(HistoricDecisionExecutionQueryProperty.START_TIME);
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery orderByEndTime() {
         return orderBy(HistoricDecisionExecutionQueryProperty.END_TIME);
     }
 
+    @Override
     public DmnHistoricDecisionExecutionQuery orderByTenantId() {
         return orderBy(HistoricDecisionExecutionQueryProperty.TENANT_ID);
     }
 
     // results ////////////////////////////////////////////
 
+    @Override
     public long executeCount(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getHistoricDecisionExecutionEntityManager().findHistoricDecisionExecutionCountByQueryCriteria(this);
     }
 
+    @Override
     public List<DmnHistoricDecisionExecution> executeList(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getHistoricDecisionExecutionEntityManager().findHistoricDecisionExecutionsByQueryCriteria(this);
-    }
-
-    public void checkQueryOk() {
-        super.checkQueryOk();
     }
 
     // getters ////////////////////////////////////////////
 
+    @Override
     public String getId() {
         return id;
     }
@@ -206,6 +244,18 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return activityId;
     }
     
+    public String getScopeType() {
+        return scopeType;
+    }
+    
+    public String getProcessInstanceIdWithChildren() {
+        return processInstanceIdWithChildren;
+    }
+
+    public String getCaseInstanceIdWithChildren() {
+        return caseInstanceIdWithChildren;
+    }
+
     public Boolean getFailed() {
         return failed;
     }

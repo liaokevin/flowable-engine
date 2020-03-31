@@ -18,14 +18,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.flowable.dmn.api.DecisionExecutionAuditContainer;
 import org.flowable.dmn.api.DmnRuleService;
 import org.flowable.dmn.engine.DmnEngine;
-import org.flowable.dmn.engine.test.DmnDeploymentAnnotation;
+import org.flowable.dmn.engine.test.DmnDeployment;
 import org.flowable.dmn.engine.test.FlowableDmnRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,7 +38,7 @@ public class HitPolicyOutputOrderTest {
     public FlowableDmnRule flowableDmnRule = new FlowableDmnRule();
 
     @Test
-    @DmnDeploymentAnnotation
+    @DmnDeployment
     public void outputOrderHitPolicy() {
         DmnEngine dmnEngine = flowableDmnRule.getDmnEngine();
 
@@ -57,15 +56,12 @@ public class HitPolicyOutputOrderTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation
+    @DmnDeployment
     public void outputOrderHitPolicyNoOutputValuesStrictModeDisabled() {
         DmnEngine dmnEngine = flowableDmnRule.getDmnEngine();
         dmnEngine.getDmnEngineConfiguration().setStrictMode(false);
 
         DmnRuleService dmnRuleService = dmnEngine.getDmnRuleService();
-
-        Map<String, Object> inputVariables = new HashMap<>();
-        inputVariables.put("inputVariable1", 5);
 
         DecisionExecutionAuditContainer result = dmnRuleService.createExecuteDecisionBuilder()
                 .decisionKey("decision1")
@@ -79,19 +75,17 @@ public class HitPolicyOutputOrderTest {
 
         assertFalse(result.isFailed());
         assertNull(result.getExceptionMessage());
+        assertNotNull(result.getValidationMessage());
 
         dmnEngine.getDmnEngineConfiguration().setStrictMode(true);
     }
 
     @Test
-    @DmnDeploymentAnnotation
+    @DmnDeployment
     public void outputOrderHitPolicyNoOutputValues() {
         DmnEngine dmnEngine = flowableDmnRule.getDmnEngine();
 
         DmnRuleService dmnRuleService = dmnEngine.getDmnRuleService();
-
-        Map<String, Object> inputVariables = new HashMap<>();
-        inputVariables.put("inputVariable1", 5);
 
         DecisionExecutionAuditContainer result = dmnRuleService.createExecuteDecisionBuilder()
                 .decisionKey("decision1")
@@ -102,10 +96,11 @@ public class HitPolicyOutputOrderTest {
 
         assertTrue(result.isFailed());
         assertNotNull(result.getExceptionMessage());
+        assertNull(result.getValidationMessage());
     }
 
     @Test
-    @DmnDeploymentAnnotation
+    @DmnDeployment
     public void outputOrderHitPolicyCompound() {
         DmnEngine dmnEngine = flowableDmnRule.getDmnEngine();
 
@@ -129,7 +124,7 @@ public class HitPolicyOutputOrderTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation
+    @DmnDeployment
     public void outputOrderHitPolicyCompoundOtherTypes() {
         DmnEngine dmnEngine = flowableDmnRule.getDmnEngine();
 
@@ -153,7 +148,7 @@ public class HitPolicyOutputOrderTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation
+    @DmnDeployment
     public void outputOrderHitPolicyCompoundFirstOutputValues() {
         DmnEngine dmnEngine = flowableDmnRule.getDmnEngine();
 
@@ -177,7 +172,7 @@ public class HitPolicyOutputOrderTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation
+    @DmnDeployment
     public void outputOrderHitPolicyCompoundSecondOutputValues() {
         DmnEngine dmnEngine = flowableDmnRule.getDmnEngine();
 

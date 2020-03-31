@@ -13,8 +13,12 @@
 
 package org.flowable.engine.test.history;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -22,14 +26,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableObjectNotFoundException;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
+import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
-import org.flowable.identitylink.service.IdentityLinkType;
-import org.flowable.identitylink.service.history.HistoricIdentityLink;
-import org.flowable.task.service.history.HistoricTaskInstance;
+import org.flowable.identitylink.api.history.HistoricIdentityLink;
+import org.flowable.identitylink.api.IdentityLinkType;
+import org.flowable.task.api.Task;
+import org.flowable.task.api.TaskInfo;
+import org.flowable.task.api.history.HistoricTaskInstance;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Tom Baeyens
@@ -37,6 +45,7 @@ import org.flowable.task.service.history.HistoricTaskInstance;
  */
 public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
 
+    @Test
     @Deployment
     public void testHistoricTaskInstance() throws Exception {
         Map<String, Object> varMap = new HashMap<>();
@@ -46,7 +55,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
 
         // Set priority to non-default value
-        org.flowable.task.service.Task runtimeTask = taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
+        org.flowable.task.api.Task runtimeTask = taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
         runtimeTask.setPriority(1234);
 
         // Set due-date
@@ -54,7 +63,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         runtimeTask.setDueDate(dueDate);
         taskService.saveTask(runtimeTask);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         String taskId = runtimeTask.getId();
         String taskDefinitionKey = runtimeTask.getTaskDefinitionKey();
@@ -77,7 +86,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
 
         taskService.claim(taskId, "kermit");
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().count());
         historicTaskInstance = historyService.createHistoricTaskInstanceQuery().singleResult();
@@ -87,7 +96,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
 
         taskService.complete(taskId);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().count());
 
@@ -107,18 +116,24 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         assertNotNull(historicTaskInstance.getWorkTimeInMillis());
 
         historyService.deleteHistoricTaskInstance(taskId);
-        
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        managementService.executeCommand(commandContext -> {
+            CommandContextUtil.getHistoricTaskService(commandContext).deleteHistoricTaskLogEntriesForTaskId(taskId);
+            return null;
+        });
+
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertEquals(0, historyService.createHistoricTaskInstanceQuery().count());
     }
 
+    @Test
     public void testDeleteHistoricTaskInstance() throws Exception {
         // deleting unexisting historic task instance should be silently ignored
         historyService.deleteHistoricTaskInstance("unexistingId");
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
     }
 
+    @Test
     @Deployment
     public void testHistoricTaskInstanceQuery() throws Exception {
         Calendar start = Calendar.getInstance();
@@ -130,7 +145,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         processEngineConfiguration.getClock().reset();
 
         // Set priority to non-default value
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(finishedInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(finishedInstance.getId()).singleResult();
         task.setPriority(1234);
         task.setOwner("fozzie");
         Date dueDate = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss").parse("01/02/2003 04:05:06");
@@ -143,7 +158,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         String taskId = task.getId();
         taskService.complete(taskId);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         // org.flowable.task.service.Task id
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().taskId(taskId).count());
@@ -211,6 +226,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
 
         // Delete reason
         assertEquals(0, historyService.createHistoricTaskInstanceQuery().taskDeleteReason("deleted").count());
+        assertEquals(1, historyService.createHistoricTaskInstanceQuery().taskWithoutDeleteReason().count());
 
         // org.flowable.task.service.Task definition ID
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().taskDefinitionKey("task").count());
@@ -285,22 +301,64 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         // Finished and Unfinished - Add anther other instance that has a running task (unfinished)
         runtimeService.startProcessInstanceByKey("HistoricTaskQueryTest");
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().finished().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().unfinished().count());
     }
 
+    @Test
+    @Deployment
+    public void testHistoricTaskInstanceQueryByTaskDefinitionKeys() throws Exception {
+        Calendar start = Calendar.getInstance();
+        start.set(Calendar.MILLISECOND, 0);
+        processEngineConfiguration.getClock().setCurrentTime(start.getTime());
+
+        // First instance is finished
+        ProcessInstance finishedInstance = runtimeService.startProcessInstanceByKey("taskDefinitionKeysProcess", "myBusinessKey");
+        processEngineConfiguration.getClock().reset();
+
+        List<Task> tasks = taskService.createTaskQuery().processInstanceId(finishedInstance.getId()).list();
+        for (Task task : tasks) {
+            taskService.complete(task.getId());
+        }
+
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
+
+        assertThat(historyService.createHistoricTaskInstanceQuery().taskDefinitionKeys(Arrays.asList("taskKey1", "taskKey123", "invalid")).list())
+            .extracting(TaskInfo::getTaskDefinitionKey, TaskInfo::getName)
+            .containsExactlyInAnyOrder(
+                tuple("taskKey1", "Task A"),
+                tuple("taskKey123", "Task B")
+            );
+        assertThat(historyService.createHistoricTaskInstanceQuery().taskDefinitionKeys(Arrays.asList("taskKey1", "taskKey123", "invalid")).count())
+            .isEqualTo(2L);
+
+        assertThat(historyService.createHistoricTaskInstanceQuery().taskDefinitionKeys(Arrays.asList("invalid1", "invalid2")).list()).isEmpty();
+        assertThat(historyService.createHistoricTaskInstanceQuery().taskDefinitionKeys(Arrays.asList("invalid1", "invalid2")).count()).isEqualTo(0L);
+
+        assertThat(historyService.createHistoricTaskInstanceQuery().or().taskId("invalid").taskDefinitionKeys(Arrays.asList("taskKey1", "taskKey123", "invalid"))
+            .endOr().list())
+            .extracting(TaskInfo::getTaskDefinitionKey, TaskInfo::getName)
+            .containsExactlyInAnyOrder(
+                tuple("taskKey1", "Task A"),
+                tuple("taskKey123", "Task B")
+            );
+        assertThat(historyService.createHistoricTaskInstanceQuery().or().taskId("invalid").taskDefinitionKeys(Arrays.asList("taskKey1", "taskKey123", "invalid"))
+            .endOr().count()).isEqualTo(2L);
+    }
+
+    @Test
     @Deployment
     public void testHistoricIdentityLinksForTaskOwner() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("twoTaskProcess");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(task);
 
         String taskId = task.getId();
         taskService.setOwner(taskId, "kermit");
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         // task is still active
         List<HistoricIdentityLink> historicIdentityLinksForTask = historyService.getHistoricIdentityLinksForTask(task.getId());
@@ -312,17 +370,17 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
 
         // change owner
         taskService.setOwner(taskId, "gonzo");
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         historicIdentityLinksForTask = historyService.getHistoricIdentityLinksForTask(task.getId());
         assertEquals(2, historicIdentityLinksForTask.size());
 
         taskService.setOwner(taskId, null);
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         historicIdentityLinksForTask = historyService.getHistoricIdentityLinksForTask(task.getId());
         assertEquals(3, historicIdentityLinksForTask.size());
 
         taskService.complete(taskId);
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         historicIdentityLinksForTask = historyService.getHistoricIdentityLinksForTask(task.getId());
         assertEquals(3, historicIdentityLinksForTask.size());
 
@@ -330,21 +388,22 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
             assertNotNull(link.getCreateTime());
         }
 
-        org.flowable.task.service.Task secondTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task secondTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(secondTask);
 
         secondTask.setOwner("fozzie");
         taskService.saveTask(secondTask);
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         historicIdentityLinksForTask = historyService.getHistoricIdentityLinksForTask(secondTask.getId());
         assertEquals(1, historicIdentityLinksForTask.size());
         assertNotNull(historicIdentityLinksForTask.get(0).getCreateTime());
     }
 
+    @Test
     @Deployment
     public void testHistoricIdentityLinksOnTaskClaim() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("twoTaskProcess");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(task);
 
         // over a time period the task can be claimed by multiple users we must keep track of who claimed it
@@ -358,7 +417,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         taskService.claim(taskId, "gonzo");
         taskService.unclaim(taskId);
 
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         // task is still active
         List<HistoricIdentityLink> historicIdentityLinksForTask = historyService.getHistoricIdentityLinksForTask(task.getId());
@@ -397,7 +456,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         // historic links should be present after the task is completed
         taskService.complete(taskId);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         historicIdentityLinksForTask = historyService.getHistoricIdentityLinksForTask(task.getId());
         nullCount = 0;
@@ -427,13 +486,13 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         historicIdentityLinksForProcess = historyService.getHistoricIdentityLinksForProcessInstance(processInstance.getId());
         assertEquals(3, historicIdentityLinksForProcess.size());
 
-        org.flowable.task.service.Task secondTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task secondTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(secondTask);
 
         String secondTaskId = secondTask.getId();
         taskService.setAssignee(secondTaskId, "newKid");
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         // 4 users now participated to the process
         historicIdentityLinksForProcess = historyService.getHistoricIdentityLinksForProcessInstance(processInstance.getId());
@@ -442,7 +501,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         // 4 users participated after the last task (and the process) is completed
         taskService.complete(secondTaskId);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         historicIdentityLinksForProcess = historyService.getHistoricIdentityLinksForProcessInstance(processInstance.getId());
         assertEquals(4, historicIdentityLinksForProcess.size());
@@ -452,6 +511,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         assertEquals("newKid", historicIdentityLinksForTask.get(0).getUserId());
     }
 
+    @Test
     @Deployment
     public void testHistoricTaskInstanceOrQuery() throws Exception {
         Calendar start = Calendar.getInstance();
@@ -463,7 +523,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         processEngineConfiguration.getClock().reset();
 
         // Set priority to non-default value
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(finishedInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(finishedInstance.getId()).singleResult();
         task.setPriority(1234);
         task.setOwner("fozzie");
         Date dueDate = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss").parse("01/02/2003 04:05:06");
@@ -476,7 +536,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         String taskId = task.getId();
         taskService.complete(taskId);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         // org.flowable.task.service.Task id
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().or().taskId(taskId).endOr().count());
@@ -548,15 +608,15 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         assertEquals(0, historyService.createHistoricTaskInstanceQuery().or().processDefinitionKey("unexistingdefinitionkey").endOr().count());
 
         // Process definition key and ad hoc task
-        org.flowable.task.service.Task adhocTask = taskService.newTask();
+        org.flowable.task.api.Task adhocTask = taskService.newTask();
         taskService.saveTask(adhocTask);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().or().taskId(adhocTask.getId()).processDefinitionKey("unexistingdefinitionkey").endOr().count());
         taskService.deleteTask(adhocTask.getId(), true);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         // Process definition key in
         List<String> includeIds = new ArrayList<>();
@@ -579,6 +639,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
 
         // Delete reason
         assertEquals(0, historyService.createHistoricTaskInstanceQuery().or().taskDeleteReason("deleted").endOr().count());
+        assertEquals(1, historyService.createHistoricTaskInstanceQuery().or().taskWithoutDeleteReason().endOr().count());
 
         // org.flowable.task.service.Task definition ID
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().or().taskDefinitionKey("task").endOr().count());
@@ -656,18 +717,19 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         // Finished and Unfinished - Add anther other instance that has a running task (unfinished)
         runtimeService.startProcessInstanceByKey("HistoricTaskQueryTest");
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().or().finished().endOr().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().or().unfinished().endOr().count());
     }
 
+    @Test
     @Deployment
     public void testHistoricTaskInstanceQueryProcessFinished() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("TwoTaskHistoricTaskQueryTest");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         // Running task on running process should be available
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().processUnfinished().count());
@@ -676,7 +738,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         // Finished and running task on running process should be available
         taskService.complete(task.getId());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         assertEquals(2, historyService.createHistoricTaskInstanceQuery().processUnfinished().count());
         assertEquals(0, historyService.createHistoricTaskInstanceQuery().processFinished().count());
@@ -685,12 +747,13 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         taskService.complete(task.getId());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         assertEquals(0, historyService.createHistoricTaskInstanceQuery().processUnfinished().count());
         assertEquals(2, historyService.createHistoricTaskInstanceQuery().processFinished().count());
     }
 
+    @Test
     @Deployment
     public void testHistoricTaskInstanceQuerySorting() {
         ProcessInstance instance = runtimeService.startProcessInstanceByKey("HistoricTaskQueryTest");
@@ -698,7 +761,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         String taskId = taskService.createTaskQuery().processInstanceId(instance.getId()).singleResult().getId();
         taskService.complete(taskId);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByDeleteReason().asc().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByExecutionId().asc().count());
@@ -712,6 +775,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByTaskPriority().asc().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByTaskAssignee().asc().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByTaskId().asc().count());
+        assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByCategory().asc().count());
 
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByDeleteReason().desc().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByExecutionId().desc().count());
@@ -725,19 +789,21 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByTaskPriority().desc().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByTaskAssignee().desc().count());
         assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByTaskId().desc().count());
+        assertEquals(1, historyService.createHistoricTaskInstanceQuery().orderByCategory().desc().count());
     }
 
+    @Test
     @Deployment
     public void testHistoricIdentityLinksOnTask() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("historicIdentityLinks");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(task);
 
         // Set additional identity-link not coming from process
         taskService.addUserIdentityLink(task.getId(), "gonzo", "customUseridentityLink");
         assertEquals(4, taskService.getIdentityLinksForTask(task.getId()).size());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         // Check historic identity-links when task is still active
         List<HistoricIdentityLink> historicIdentityLinks = historyService.getHistoricIdentityLinksForTask(task.getId());
@@ -775,14 +841,14 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         // Now complete the task and check if links are still there
         taskService.complete(task.getId());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         assertEquals(4, historyService.getHistoricIdentityLinksForTask(task.getId()).size());
 
         // After deleting historic task, exception should be thrown when trying to get links
         historyService.deleteHistoricTaskInstance(task.getId());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
         try {
             historyService.getHistoricIdentityLinksForTask(task.getId()).size();
@@ -790,8 +856,13 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
         } catch (FlowableObjectNotFoundException aonfe) {
             assertEquals(HistoricTaskInstance.class, aonfe.getObjectClass());
         }
+        managementService.executeCommand(commandContext -> {
+            CommandContextUtil.getHistoricTaskService(commandContext).deleteHistoricTaskLogEntriesForTaskId(task.getId());
+            return null;
+        });
     }
 
+    @Test
     public void testInvalidSorting() {
         try {
             historyService.createHistoricTaskInstanceQuery().asc();
@@ -818,10 +889,11 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
     /**
      * Test to validate fix for ACT-1939: HistoryService loads invalid task local variables for completed task
      */
+    @Test
     @Deployment
     public void testVariableUpdateOrderHistoricTaskInstance() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("historicTask");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(task);
 
         // Update task and process-variable 10 times
@@ -832,7 +904,7 @@ public class HistoricTaskInstanceTest extends PluggableFlowableTestCase {
 
         taskService.complete(task.getId());
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
         // Check if all variables have the value for the latest revision
         HistoricTaskInstance taskInstance = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).includeProcessVariables().singleResult();

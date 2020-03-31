@@ -13,8 +13,8 @@
 
 package org.flowable.job.service.impl.asyncexecutor.multitenant;
 
-import org.flowable.engine.common.impl.cfg.multitenant.TenantInfoHolder;
-import org.flowable.job.service.JobInfo;
+import org.flowable.common.engine.impl.cfg.multitenant.TenantInfoHolder;
+import org.flowable.job.api.JobInfo;
 import org.flowable.job.service.JobServiceConfiguration;
 import org.flowable.job.service.impl.asyncexecutor.ExecuteAsyncRunnableFactory;
 import org.flowable.job.service.impl.persistence.entity.JobEntity;
@@ -34,6 +34,7 @@ public class TenantAwareExecuteAsyncRunnableFactory implements ExecuteAsyncRunna
         this.tenantId = tenantId;
     }
 
+    @Override
     public Runnable createExecuteAsyncRunnable(JobInfo job, JobServiceConfiguration jobServiceConfiguration) {
         return new TenantAwareExecuteAsyncRunnable(job, jobServiceConfiguration, tenantInfoHolder, tenantId);
     }

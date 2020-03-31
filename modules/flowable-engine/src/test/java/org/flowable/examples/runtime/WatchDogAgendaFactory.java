@@ -12,10 +12,10 @@
  */
 package org.flowable.examples.runtime;
 
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.FlowableEngineAgenda;
 import org.flowable.engine.FlowableEngineAgendaFactory;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.agenda.DefaultFlowableEngineAgenda;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 
@@ -71,8 +71,8 @@ public class WatchDogAgendaFactory implements FlowableEngineAgendaFactory {
         }
 
         @Override
-        public void planContinueMultiInstanceOperation(ExecutionEntity execution, int loopCounter) {
-            agenda.planContinueMultiInstanceOperation(execution, loopCounter);
+        public void planContinueMultiInstanceOperation(ExecutionEntity execution, ExecutionEntity multiInstanceExecution, int loopCounter) {
+            agenda.planContinueMultiInstanceOperation(execution, multiInstanceExecution, loopCounter);
         }
 
         @Override
@@ -84,6 +84,11 @@ public class WatchDogAgendaFactory implements FlowableEngineAgendaFactory {
         public void planEndExecutionOperation(ExecutionEntity execution) {
             agenda.planEndExecutionOperation(execution);
         }
+        
+        @Override
+        public void planEndExecutionOperationSynchronous(ExecutionEntity execution) {
+            agenda.planEndExecutionOperationSynchronous(execution);
+        }
 
         @Override
         public void planTriggerExecutionOperation(ExecutionEntity execution) {
@@ -91,8 +96,18 @@ public class WatchDogAgendaFactory implements FlowableEngineAgendaFactory {
         }
 
         @Override
+        public void planAsyncTriggerExecutionOperation(ExecutionEntity execution) {
+            agenda.planAsyncTriggerExecutionOperation(execution);
+        }
+
+        @Override
         public void planDestroyScopeOperation(ExecutionEntity execution) {
             agenda.planDestroyScopeOperation(execution);
+        }
+        
+        @Override
+        public void planEvaluateConditionalEventsOperation(ExecutionEntity execution) {
+            agenda.planEvaluateConditionalEventsOperation(execution);
         }
 
         @Override
@@ -116,14 +131,12 @@ public class WatchDogAgendaFactory implements FlowableEngineAgendaFactory {
 
         @Override
         public void flush() {
-            // TODO Auto-generated method stub
-            
+            agenda.flush();
         }
 
         @Override
         public void close() {
-            // TODO Auto-generated method stub
-            
+            agenda.close();
         }
 
     }

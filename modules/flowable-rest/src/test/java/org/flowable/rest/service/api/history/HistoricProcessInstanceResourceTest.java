@@ -13,6 +13,9 @@
 
 package org.flowable.rest.service.api.history;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
@@ -21,7 +24,8 @@ import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -29,15 +33,24 @@ import com.fasterxml.jackson.databind.JsonNode;
  * Test for REST-operation related to get and delete a historic process instance.
  * 
  * @author Tijs Rademakers
+ * @author Joram Barrez
  */
 public class HistoricProcessInstanceResourceTest extends BaseSpringRestTestCase {
 
     /**
      * Test retrieval of historic process instance. GET history/historic-process-instances/{processInstanceId}
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/repository/oneTaskProcess.bpmn20.xml" })
     public void testGetProcessInstance() throws Exception {
-        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
+        ProcessInstance processInstance = runtimeService.createProcessInstanceBuilder()
+            .processDefinitionKey("oneTaskProcess")
+            .businessKey("myBusinessKey")
+            .callbackId("testCallbackId")
+            .callbackType("testCallbackType")
+            .referenceId("testReferenceId")
+            .referenceType("testReferenceType")
+            .start();
 
         CloseableHttpResponse response = executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_HISTORIC_PROCESS_INSTANCE, processInstance.getId())),
                 HttpStatus.SC_OK);
@@ -48,6 +61,11 @@ public class HistoricProcessInstanceResourceTest extends BaseSpringRestTestCase 
         closeResponse(response);
         assertNotNull(responseNode);
         assertEquals(processInstance.getId(), responseNode.get("id").textValue());
+        assertEquals("myBusinessKey", responseNode.get("businessKey").textValue());
+        assertEquals("testCallbackId", responseNode.get("callbackId").textValue());
+        assertEquals("testCallbackType", responseNode.get("callbackType").textValue());
+        assertEquals("testReferenceId", responseNode.get("referenceId").textValue());
+        assertEquals("testReferenceType", responseNode.get("referenceType").textValue());
 
         Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(task);

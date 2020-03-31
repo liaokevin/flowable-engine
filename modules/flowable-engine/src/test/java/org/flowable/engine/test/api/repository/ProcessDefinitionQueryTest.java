@@ -17,13 +17,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
 import org.flowable.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.repository.ProcessDefinitionQuery;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Joram Barrez
@@ -33,7 +37,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
     private String deploymentOneId;
     private String deploymentTwoId;
 
-    @Override
+    @BeforeEach
     protected void setUp() throws Exception {
         deploymentOneId = repositoryService.createDeployment().name("org/flowable/engine/test/repository/one.bpmn20.xml").addClasspathResource("org/flowable/engine/test/repository/one.bpmn20.xml")
                 .addClasspathResource("org/flowable/engine/test/repository/two.bpmn20.xml").deploy().getId();
@@ -41,16 +45,15 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         deploymentTwoId = repositoryService.createDeployment().name("org/flowable/engine/test/repository/one.bpmn20.xml").addClasspathResource("org/flowable/engine/test/repository/one.bpmn20.xml")
                 .deploy().getId();
 
-        super.setUp();
     }
 
-    @Override
+    @AfterEach
     protected void tearDown() throws Exception {
-        super.tearDown();
         repositoryService.deleteDeployment(deploymentOneId, true);
         repositoryService.deleteDeployment(deploymentTwoId, true);
     }
 
+    @Test
     public void testProcessDefinitionProperties() {
         List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery().orderByProcessDefinitionName().asc().orderByProcessDefinitionVersion().asc()
                 .orderByProcessDefinitionCategory().asc().list();
@@ -74,11 +77,13 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         assertEquals("Examples2", processDefinition.getCategory());
     }
 
+    @Test
     public void testQueryByDeploymentId() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().deploymentId(deploymentOneId);
         verifyQueryResults(query, 2);
     }
 
+    @Test
     public void testQueryByInvalidDeploymentId() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().deploymentId("invalid");
         verifyQueryResults(query, 0);
@@ -90,6 +95,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByName() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionName("Two");
         verifyQueryResults(query, 1);
@@ -98,6 +104,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         verifyQueryResults(query, 2);
     }
 
+    @Test
     public void testQueryByInvalidName() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionName("invalid");
         verifyQueryResults(query, 0);
@@ -109,16 +116,19 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByNameLike() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionNameLike("%w%");
         verifyQueryResults(query, 1);
     }
 
+    @Test
     public void testQueryByInvalidNameLike() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionNameLike("%invalid%");
         verifyQueryResults(query, 0);
     }
 
+    @Test
     public void testQueryByKey() {
         // process one
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionKey("one");
@@ -129,6 +139,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         verifyQueryResults(query, 1);
     }
 
+    @Test
     public void testQueryByInvalidKey() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionKey("invalid");
         verifyQueryResults(query, 0);
@@ -140,11 +151,13 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByKeyLike() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionKeyLike("%o%");
         verifyQueryResults(query, 3);
     }
 
+    @Test
     public void testQueryByInvalidKeyLike() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionKeyLike("%invalid%");
         verifyQueryResults(query, 0);
@@ -156,11 +169,13 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByCategory() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionCategory("Examples");
         verifyQueryResults(query, 2);
     }
 
+    @Test
     public void testQueryByCategoryLike() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionCategoryLike("%Example%");
         verifyQueryResults(query, 3);
@@ -169,6 +184,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         verifyQueryResults(query, 1);
     }
 
+    @Test
     public void testQueryByVersion() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionVersion(2);
         verifyQueryResults(query, 1);
@@ -177,6 +193,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         verifyQueryResults(query, 2);
     }
 
+    @Test
     public void testQueryByInvalidVersion() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionVersion(3);
         verifyQueryResults(query, 0);
@@ -194,6 +211,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByKeyAndVersion() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().processDefinitionKey("one").processDefinitionVersion(1);
         verifyQueryResults(query, 1);
@@ -205,6 +223,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         verifyQueryResults(query, 0);
     }
 
+    @Test
     public void testQueryByLatest() {
         ProcessDefinitionQuery query = repositoryService.createProcessDefinitionQuery().latestVersion();
         verifyQueryResults(query, 2);
@@ -216,6 +235,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         verifyQueryResults(query, 1);
     }
 
+    @Test
     public void testQuerySorting() {
 
         // asc
@@ -280,6 +300,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByMessageSubscription() {
         Deployment deployment = repositoryService.createDeployment().addClasspathResource("org/flowable/engine/test/api/repository/processWithNewBookingMessage.bpmn20.xml")
                 .addClasspathResource("org/flowable/engine/test/api/repository/processWithNewInvoiceMessage.bpmn20.xml").deploy();
@@ -293,9 +314,10 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         repositoryService.deleteDeployment(deployment.getId());
     }
 
+    @Test
     public void testNativeQuery() {
-        assertEquals("ACT_RE_PROCDEF", managementService.getTableName(ProcessDefinition.class));
-        assertEquals("ACT_RE_PROCDEF", managementService.getTableName(ProcessDefinitionEntity.class));
+        assertEquals("ACT_RE_PROCDEF", managementService.getTableName(ProcessDefinition.class, false));
+        assertEquals("ACT_RE_PROCDEF", managementService.getTableName(ProcessDefinitionEntity.class, false));
         String tableName = managementService.getTableName(ProcessDefinition.class);
         String baseQuerySql = "SELECT * FROM " + tableName;
 
@@ -310,6 +332,7 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         assertEquals(2, repositoryService.createNativeProcessDefinitionQuery().sql(baseQuerySql).listPage(1, 3).size());
     }
 
+    @Test
     public void testQueryByProcessDefinitionIds() {
         List<ProcessDefinition> processDefinitions = repositoryService.createProcessDefinitionQuery().list();
         Set<String> ids = new HashSet<>();
@@ -324,4 +347,40 @@ public class ProcessDefinitionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+
+    @Test
+    public void testLocalizeProcessDefinition() {
+        Deployment deployment = repositoryService.createDeployment().addClasspathResource("org/flowable/engine/test/repository/LocalizedProcess.bpmn20.xml")
+                .addClasspathResource("org/flowable/engine/test/repository/LocalizedProcess.bpmn20.xml").deploy();
+
+        ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey("localizedProcess")
+                .singleResult();
+
+        assertEquals("A localized process", processDefinition.getName());
+        assertEquals("This a process that can be localized", processDefinition.getDescription());
+
+        processDefinition = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey("localizedProcess")
+                .locale("es")
+                .singleResult();
+
+        assertEquals("Nombre del proceso", processDefinition.getName());
+        assertEquals("Descripción del proceso", processDefinition.getDescription());
+
+        ObjectNode infoNode = dynamicBpmnService.getProcessDefinitionInfo(processDefinition.getId());
+        dynamicBpmnService.changeLocalizationName("en-GB", "localizedProcess", "The process name in 'en-GB'", infoNode);
+        dynamicBpmnService.changeLocalizationDescription("en-GB", "localizedProcess", "The process description in 'en-GB'", infoNode);
+        dynamicBpmnService.saveProcessDefinitionInfo(processDefinition.getId(), infoNode);
+
+        processDefinition = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey("localizedProcess")
+                .locale("en-GB")
+                .singleResult();
+
+        assertEquals("The process name in 'en-GB'", processDefinition.getName());
+        assertEquals("The process description in 'en-GB'", processDefinition.getDescription());
+
+        repositoryService.deleteDeployment(deployment.getId());
+    }
 }

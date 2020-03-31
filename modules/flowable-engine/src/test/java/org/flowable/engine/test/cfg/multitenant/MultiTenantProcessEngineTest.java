@@ -27,10 +27,10 @@ import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.job.service.impl.asyncexecutor.multitenant.ExecutorPerTenantAsyncExecutor;
 import org.flowable.job.service.impl.asyncexecutor.multitenant.SharedExecutorServiceAsyncExecutor;
 import org.h2.jdbcx.JdbcDataSource;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Joram Barrez
@@ -41,12 +41,12 @@ public class MultiTenantProcessEngineTest {
     private MultiSchemaMultiTenantProcessEngineConfiguration config;
     private ProcessEngine processEngine;
 
-    @Before
+    @BeforeEach
     public void setup() {
         setupTenantInfoHolder();
     }
 
-    @After
+    @AfterEach
     public void close() {
         processEngine.close();
     }
@@ -78,6 +78,7 @@ public class MultiTenantProcessEngineTest {
 
         config.setAsyncExecutorActivate(true);
         config.setDisableIdmEngine(true);
+        config.setDisableEventRegistry(true);
 
         if (sharedExecutor) {
             config.setAsyncExecutor(new SharedExecutorServiceAsyncExecutor(tenantInfoHolder));
@@ -159,7 +160,7 @@ public class MultiTenantProcessEngineTest {
         vars.put("data", "Hello from " + userId);
 
         ProcessInstance processInstance = processEngine.getRuntimeService().startProcessInstanceByKey("oneTaskProcess", vars);
-        List<org.flowable.task.service.Task> tasks = processEngine.getTaskService().createTaskQuery().processInstanceId(processInstance.getId()).list();
+        List<org.flowable.task.api.Task> tasks = processEngine.getTaskService().createTaskQuery().processInstanceId(processInstance.getId()).list();
         System.out.println("Got " + tasks.size() + " tasks");
 
         System.out.println("Got " + processEngine.getHistoryService().createHistoricProcessInstanceQuery().count() + " process instances in the system");
@@ -174,7 +175,7 @@ public class MultiTenantProcessEngineTest {
     private void completeTasks(String userId) {
         tenantInfoHolder.setCurrentUserId(userId);
 
-        for (org.flowable.task.service.Task task : processEngine.getTaskService().createTaskQuery().list()) {
+        for (org.flowable.task.api.Task task : processEngine.getTaskService().createTaskQuery().list()) {
             processEngine.getTaskService().complete(task.getId());
         }
 

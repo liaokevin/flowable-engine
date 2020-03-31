@@ -16,8 +16,8 @@ package org.flowable.job.service.impl;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.flowable.engine.common.api.query.QueryProperty;
-import org.flowable.job.service.JobQuery;
+import org.flowable.common.engine.api.query.QueryProperty;
+import org.flowable.job.api.JobQuery;
 
 /**
  * Contains the possible properties that can be used in a {@link JobQuery}.
@@ -44,6 +44,7 @@ public class JobQueryProperty implements QueryProperty {
         properties.put(name, this);
     }
 
+    @Override
     public String getName() {
         return name;
     }

@@ -12,6 +12,8 @@
  */
 package org.flowable.engine.impl.util;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Date;
 
 import org.apache.commons.lang3.StringUtils;
@@ -21,15 +23,17 @@ import org.flowable.bpmn.model.Event;
 import org.flowable.bpmn.model.FlowElement;
 import org.flowable.bpmn.model.IntermediateCatchEvent;
 import org.flowable.bpmn.model.TimerEventDefinition;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.api.delegate.event.FlowableEventDispatcher;
-import org.flowable.engine.common.impl.calendar.BusinessCalendar;
-import org.flowable.engine.common.runtime.Clock;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.delegate.Expression;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.common.engine.impl.calendar.BusinessCalendar;
+import org.flowable.common.engine.impl.calendar.CycleBusinessCalendar;
+import org.flowable.common.engine.impl.calendar.DueDateBusinessCalendar;
+import org.flowable.common.engine.impl.calendar.DurationBusinessCalendar;
+import org.flowable.common.engine.impl.el.ExpressionManager;
+import org.flowable.common.engine.impl.runtime.Clock;
 import org.flowable.engine.delegate.event.impl.FlowableEventBuilder;
-import org.flowable.engine.impl.calendar.CycleBusinessCalendar;
-import org.flowable.engine.impl.calendar.DueDateBusinessCalendar;
-import org.flowable.engine.impl.calendar.DurationBusinessCalendar;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.jobexecutor.TimerEventHandler;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
@@ -37,9 +41,7 @@ import org.flowable.job.service.TimerJobService;
 import org.flowable.job.service.event.impl.FlowableJobEventBuilder;
 import org.flowable.job.service.impl.persistence.entity.JobEntity;
 import org.flowable.job.service.impl.persistence.entity.TimerJobEntity;
-import org.flowable.variable.service.delegate.Expression;
-import org.flowable.variable.service.delegate.VariableScope;
-import org.flowable.variable.service.impl.el.ExpressionManager;
+import org.flowable.variable.api.delegate.VariableScope;
 import org.flowable.variable.service.impl.el.NoExecutionVariableScope;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -114,9 +116,14 @@ public class TimerUtil {
             // JodaTime support
             duedate = ((DateTime) dueDateValue).toDate();
 
+        } else if (dueDateValue instanceof Duration) {
+        	dueDateString = ((Duration) dueDateValue).toString();
+        } else if (dueDateValue instanceof Instant) {
+            duedate = Date.from((Instant) dueDateValue);
+            
         } else if (dueDateValue != null) {
             throw new FlowableException("Timer '" + executionEntity.getActivityId()
-                    + "' was not configured with a valid duration/time, either hand in a java.util.Date or a String in format 'yyyy-MM-dd'T'hh:mm:ss'");
+                    + "' was not configured with a valid duration/time, either hand in a java.util.Date or a java.time.Instant or a org.joda.time.DateTime or a String in format 'yyyy-MM-dd'T'hh:mm:ss'");
         }
 
         if (duedate == null && dueDateString != null) {
@@ -170,6 +177,8 @@ public class TimerUtil {
             timer.setExecutionId(executionEntity.getId());
             timer.setProcessDefinitionId(executionEntity.getProcessDefinitionId());
             timer.setProcessInstanceId(executionEntity.getProcessInstanceId());
+            timer.setElementId(executionEntity.getCurrentFlowElement().getId());
+            timer.setElementName(executionEntity.getCurrentFlowElement().getName());
             
             // Inherit tenant identifier (if applicable)
             if (executionEntity.getTenantId() != null) {
@@ -199,7 +208,7 @@ public class TimerUtil {
             timerJobService.insertTimerJob(rescheduledTimerJob);
 
             FlowableEventDispatcher eventDispatcher = CommandContextUtil.getProcessEngineConfiguration().getEventDispatcher();
-            if (eventDispatcher.isEnabled()) {
+            if (eventDispatcher != null && eventDispatcher.isEnabled()) {
                 eventDispatcher.dispatchEvent(
                         FlowableEventBuilder.createJobRescheduledEvent(FlowableEngineEventType.JOB_RESCHEDULED, rescheduledTimerJob, timerJob.getId()));
                 

@@ -16,6 +16,8 @@ package org.flowable.engine;
 import java.util.List;
 
 import org.flowable.engine.dynamic.DynamicProcessDefinitionSummary;
+import org.flowable.engine.impl.dynamic.DynamicEmbeddedSubProcessBuilder;
+import org.flowable.engine.impl.dynamic.DynamicUserTaskBuilder;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -25,6 +27,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * @author Tijs Rademakers
  */
 public interface DynamicBpmnService {
+    
+    void injectUserTaskInProcessInstance(String processInstanceId, DynamicUserTaskBuilder dynamicUserTaskBuilder);
+
+    void injectParallelUserTask(String taskId, DynamicUserTaskBuilder dynamicUserTaskBuilder);
+    
+    void injectEmbeddedSubProcessInProcessInstance(String processInstanceId, DynamicEmbeddedSubProcessBuilder dynamicEmbeddedSubProcessBuilder);
+
+    void injectParallelEmbeddedSubProcess(String taskId, DynamicEmbeddedSubProcessBuilder dynamicEmbeddedSubProcessBuilder);
 
     ObjectNode getProcessDefinitionInfo(String processDefinitionId);
 
@@ -45,6 +55,18 @@ public interface DynamicBpmnService {
     ObjectNode changeScriptTaskScript(String id, String script);
 
     void changeScriptTaskScript(String id, String script, ObjectNode infoNode);
+    
+    ObjectNode changeSkipExpression(String id, String skipExpression);
+
+    void changeSkipExpression(String id, String skipExpression, ObjectNode infoNode);
+    
+    void removeSkipExpression(String id, ObjectNode infoNode);
+    
+    ObjectNode enableSkipExpression();
+    
+    void enableSkipExpression(ObjectNode infoNode);
+    
+    void removeEnableSkipExpression(ObjectNode infoNode);
 
     ObjectNode changeUserTaskName(String id, String name);
 
@@ -161,6 +183,10 @@ public interface DynamicBpmnService {
     ObjectNode changeSequenceFlowCondition(String id, String condition);
 
     void changeSequenceFlowCondition(String id, String condition, ObjectNode infoNode);
+
+    ObjectNode changeCallActivityCalledElement(String id, String calledElement);
+
+    void changeCallActivityCalledElement(String id, String calledElement, ObjectNode infoNode);
 
     ObjectNode getBpmnElementProperties(String id, ObjectNode infoNode);
 

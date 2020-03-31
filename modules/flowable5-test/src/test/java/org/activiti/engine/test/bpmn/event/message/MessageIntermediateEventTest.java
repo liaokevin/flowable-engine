@@ -16,10 +16,10 @@ package org.activiti.engine.test.bpmn.event.message;
 import java.util.List;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.impl.EventSubscriptionQueryImpl;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
+import org.flowable.eventsubscription.service.impl.EventSubscriptionQueryImpl;
 
 /**
  * @author Daniel Meyer
@@ -45,7 +45,7 @@ public class MessageIntermediateEventTest extends PluggableFlowableTestCase {
 
         runtimeService.messageEventReceived(messageName, execution.getId());
 
-        org.flowable.task.service.Task task = taskService.createTaskQuery()
+        org.flowable.task.api.Task task = taskService.createTaskQuery()
                 .singleResult();
         assertNotNull(task);
         taskService.complete(task.getId());
@@ -73,7 +73,7 @@ public class MessageIntermediateEventTest extends PluggableFlowableTestCase {
 
         runtimeService.messageEventReceived(messageName, executions.get(0).getId());
 
-        org.flowable.task.service.Task task = taskService.createTaskQuery()
+        org.flowable.task.api.Task task = taskService.createTaskQuery()
                 .singleResult();
         assertNull(task);
 

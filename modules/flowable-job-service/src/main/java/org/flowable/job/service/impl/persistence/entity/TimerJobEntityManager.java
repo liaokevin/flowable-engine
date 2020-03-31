@@ -14,16 +14,16 @@ package org.flowable.job.service.impl.persistence.entity;
 
 import java.util.List;
 
-import org.flowable.engine.common.impl.Page;
-import org.flowable.engine.common.impl.persistence.entity.EntityManager;
-import org.flowable.job.service.Job;
+import org.flowable.common.engine.impl.Page;
+import org.flowable.common.engine.impl.persistence.entity.EntityManager;
+import org.flowable.job.api.Job;
 import org.flowable.job.service.impl.JobQueryImpl;
 import org.flowable.job.service.impl.TimerJobQueryImpl;
-import org.flowable.variable.service.delegate.VariableScope;
+import org.flowable.variable.api.delegate.VariableScope;
 
 /**
  * {@link EntityManager} responsible for {@link TimerJobEntity} instances.
- * 
+ *
  * @author Tijs Rademakers
  * @author Vasile Dirla
  */
@@ -42,7 +42,7 @@ public interface TimerJobEntityManager extends EntityManager<TimerJobEntity> {
 
     /**
      * Returns the {@link TimerJobEntity} for a given process definition.
-     * 
+     * <p>
      * This is for example used when deleting a process definition: it finds the {@link TimerJobEntity} representing the timer start events.
      */
     List<TimerJobEntity> findJobsByTypeAndProcessDefinitionId(String type, String processDefinitionId);
@@ -68,18 +68,23 @@ public interface TimerJobEntityManager extends EntityManager<TimerJobEntity> {
     List<TimerJobEntity> findJobsByProcessInstanceId(String id);
 
     /**
+     * Returns all {@link TimerJobEntity} for the given scope and subscope.
+     */
+    List<TimerJobEntity> findJobsByScopeIdAndSubScopeId(String scopeId, String subScopeId);
+
+    /**
      * Executes a {@link JobQueryImpl} and returns the matching {@link TimerJobEntity} instances.
      */
     List<Job> findJobsByQueryCriteria(TimerJobQueryImpl jobQuery);
 
     /**
-     * Same as {@link #findJobsByQueryCriteria(TimerJobQueryImpl, Page)}, but only returns a count and not the instances itself.
+     * Same as {@link #findJobsByQueryCriteria(TimerJobQueryImpl)}, but only returns a count and not the instances itself.
      */
     long findJobCountByQueryCriteria(TimerJobQueryImpl jobQuery);
 
     /**
      * Creates a new {@link TimerJobEntity}, typically when a timer is used in a repeating way. The returns {@link TimerJobEntity} is not yet inserted.
-     * 
+     * <p>
      * Returns null if the timer has finished its repetitions.
      */
     TimerJobEntity createAndCalculateNextTimer(JobEntity timerEntity, VariableScope variableScope);
@@ -88,5 +93,5 @@ public interface TimerJobEntityManager extends EntityManager<TimerJobEntity> {
      * Changes the tenantId for all jobs related to a given {@link DeploymentEntity}.
      */
     void updateJobTenantIdForDeployment(String deploymentId, String newTenantId);
-
+    
 }

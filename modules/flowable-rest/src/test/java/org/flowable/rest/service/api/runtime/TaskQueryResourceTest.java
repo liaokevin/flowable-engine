@@ -13,6 +13,10 @@
 
 package org.flowable.rest.service.api.runtime;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -20,15 +24,20 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
-import org.flowable.identitylink.service.IdentityLinkType;
+import org.flowable.identitylink.api.IdentityLinkType;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.DelegationState;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.DelegationState;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -42,6 +51,7 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
     /**
      * Test querying tasks. GET runtime/tasks
      */
+    @Test
     @Deployment
     public void testQueryTasks() throws Exception {
         try {
@@ -176,6 +186,15 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
             requestNode.removeAll();
             requestNode.put("processInstanceId", processInstance.getId());
             assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
+            
+            // Process instance with children filtering
+            requestNode.removeAll();
+            requestNode.put("processInstanceIdWithChildren", processInstance.getId());
+            assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
+            
+            requestNode.removeAll();
+            requestNode.put("processInstanceIdWithChildren", "nonexisting");
+            assertResultsPresentInPostDataResponse(url, requestNode);
 
             // Execution filtering
             requestNode.removeAll();
@@ -243,6 +262,11 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
             requestNode.put("taskDefinitionKeyLike", "process%");
             assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
 
+            // Task definition keys filtering
+            requestNode.removeAll();
+            requestNode.putArray("taskDefinitionKeys").add("processTask").add("invalidTask");
+            assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
+
             // Duedate filtering
             requestNode.removeAll();
             requestNode.put("dueDate", getISODateString(adhocTaskCreate.getTime()));
@@ -301,6 +325,7 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
     /**
      * Test querying tasks using task and process variables. GET runtime/tasks
      */
+    @Test
     @Deployment
     public void testQueryTasksWithVariables() throws Exception {
         HashMap<String, Object> processVariables = new HashMap<>();
@@ -559,11 +584,20 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
         variableNode.put("name", "stringVar");
         variableNode.put("value", "Azert%");
         variableNode.put("operation", "like");
+        assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
+
+        // LikeIgnore Case
+        variableNode.removeAll();
+        variableNode.put("name", "stringVar");
+        variableNode.put("value", "AzErT%");
+        variableNode.put("operation", "likeIgnoreCase");
+        assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
     }
 
     /**
      * Test querying tasks. GET runtime/tasks
      */
+    @Test
     public void testQueryTasksWithPaging() throws Exception {
         try {
             Calendar adhocTaskCreate = Calendar.getInstance();
@@ -608,4 +642,38 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
             }
         }
     }
+
+    @Test
+    @Deployment(resources = "org/flowable/rest/service/api/runtime/TaskQueryResourceTest.testQueryTasks.bpmn20.xml", tenantId = "testTenant")
+    public void testQueryTasksWithTenant() throws Exception {
+        runtimeService.startProcessInstanceByKeyAndTenantId("oneTaskProcess", "myBusinessKey",
+            Collections.singletonMap("var1", "var1Value"),
+            "testTenant");
+
+        // Check filter-less to fetch all tasks
+        String url = RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_QUERY);
+        ObjectNode requestNode = objectMapper.createObjectNode();
+        requestNode.put("includeProcessVariables", true);
+        requestNode.put("includeTaskLocalVariables", true);
+        assertTenantIdPresent(url, requestNode, "testTenant");
+    }
+
+    protected void assertTenantIdPresent(String url, ObjectNode requestNode, String tenantId) throws IOException {
+        // Do the actual call
+        HttpPost post = new HttpPost(SERVER_URL_PREFIX + url);
+        post.setEntity(new StringEntity(requestNode.toString()));
+        CloseableHttpResponse response = executeRequest(post, HttpStatus.SC_OK);
+
+        // Check status and size
+        JsonNode rootNode = objectMapper.readTree(response.getEntity().getContent());
+        JsonNode dataNode = rootNode.get("data");
+        assertEquals(1, dataNode.size());
+
+        // Check presence of tenantId
+        assertNotNull(dataNode.get(0).get("tenantId"));
+        assertEquals("testTenant", dataNode.get(0).get("tenantId").textValue());
+
+        closeResponse(response);
+    }
+
 }

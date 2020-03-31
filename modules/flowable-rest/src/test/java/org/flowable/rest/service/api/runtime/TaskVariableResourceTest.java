@@ -13,9 +13,15 @@
 
 package org.flowable.rest.service.api.runtime;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +39,8 @@ import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.HttpMultipartHelper;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -48,6 +55,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a task variable. GET runtime/tasks/{taskId}/variables/{variableName}
      */
+    @Test
     @Deployment
     public void testGetTaskVariable() throws Exception {
         try {
@@ -128,6 +136,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a task variable. GET runtime/tasks/{taskId}/variables/{variableName}/data
      */
+    @Test
     public void testGetTaskVariableData() throws Exception {
         try {
             // Test variable behaviour on standalone tasks
@@ -140,7 +149,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
             CloseableHttpResponse response = executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLE_DATA, task.getId(), "localTaskVariable")),
                     HttpStatus.SC_OK);
 
-            String actualResponseBytesAsText = IOUtils.toString(response.getEntity().getContent());
+            String actualResponseBytesAsText = IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
             closeResponse(response);
             assertEquals("This is a binary piece of text", actualResponseBytesAsText);
             assertEquals("application/octet-stream", response.getEntity().getContentType().getValue());
@@ -157,6 +166,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a task variable. GET runtime/tasks/{taskId}/variables/{variableName}/data
      */
+    @Test
     public void testGetTaskVariableDataSerializable() throws Exception {
         try {
             TestSerializableVariable originalSerializable = new TestSerializableVariable();
@@ -191,6 +201,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting a task variable. GET runtime/tasks/{taskId}/variables/{variableName}/data
      */
+    @Test
     public void testGetTaskVariableDataForIllegalVariables() throws Exception {
         try {
             // Test variable behaviour on standalone tasks
@@ -218,6 +229,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
      * 
      * DELETE runtime/tasks/{taskId}/variables/{variableName}
      */
+    @Test
     @Deployment
     public void testDeleteTaskVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", Collections.singletonMap("overlappingVariable", (Object) "processValue"));
@@ -256,6 +268,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
      * 
      * PUT runtime/tasks/{taskId}/variables/{variableName}
      */
+    @Test
     @Deployment
     public void testUpdateTaskVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", Collections.singletonMap("overlappingVariable", (Object) "processValue"));
@@ -334,6 +347,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test updating a single task variable using a binary stream. PUT runtime/tasks/{taskId}/variables/{variableName}
      */
+    @Test
     public void testUpdateBinaryTaskVariable() throws Exception {
         try {
             Task task = taskService.newTask();
@@ -359,7 +373,7 @@ public class TaskVariableResourceTest extends BaseSpringRestTestCase {
             assertTrue(responseNode.get("value").isNull());
             assertEquals("local", responseNode.get("scope").asText());
             assertEquals("binary", responseNode.get("type").asText());
-            assertNotNull(responseNode.get("valueUrl").isNull());
+            assertNotNull(responseNode.get("valueUrl"));
             assertTrue(responseNode.get("valueUrl").asText().endsWith(RestUrls.createRelativeResourceUrl(RestUrls.URL_TASK_VARIABLE_DATA, task.getId(), "binaryVariable")));
 
             // Check actual value of variable in engine

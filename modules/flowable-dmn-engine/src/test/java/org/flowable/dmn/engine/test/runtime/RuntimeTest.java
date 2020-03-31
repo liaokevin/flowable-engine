@@ -16,9 +16,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.flowable.dmn.api.DecisionExecutionAuditContainer;
 import org.flowable.dmn.engine.test.AbstractFlowableDmnTest;
-import org.flowable.dmn.engine.test.DmnDeploymentAnnotation;
+import org.flowable.dmn.engine.test.DmnDeployment;
 import org.joda.time.LocalDate;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -30,8 +32,10 @@ import org.junit.Test;
  */
 public class RuntimeTest extends AbstractFlowableDmnTest {
 
+    public ObjectMapper objectMapper = new ObjectMapper();
+
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/multiple_conclusions.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/multiple_conclusions.dmn")
     public void multipleConclusions() {
         Map<String, Object> result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -44,7 +48,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/dates_1.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/dates_1.dmn")
     public void staticDates() {
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
         LocalDate localDate = dateTimeFormatter.parseLocalDate("2015-09-18");
@@ -58,7 +62,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/dates_2.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/dates_2.dmn")
     public void dynamicDatesAdd() {
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
         LocalDate localDate = dateTimeFormatter.parseLocalDate("2015-09-18");
@@ -72,7 +76,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/dates_3.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/dates_3.dmn")
     public void dynamicDatesSubtract() {
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
         LocalDate localDate = dateTimeFormatter.parseLocalDate("2015-09-18");
@@ -86,7 +90,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/dates_5.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/dates_5.dmn")
     public void datesEquals() {
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
         LocalDate localDate = dateTimeFormatter.parseLocalDate("2015-09-18");
@@ -100,7 +104,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/dates_5.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/dates_5.dmn")
     public void localDatesEquals() {
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
         LocalDate localDate = dateTimeFormatter.parseLocalDate("2015-09-18");
@@ -114,7 +118,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/strings_1.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/strings_1.dmn")
     public void stringOnInput() {
         Map<String, Object> result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -126,7 +130,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/strings_2.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/strings_2.dmn")
     public void emptyStrings() {
         Map<String, Object> processVariablesInput = new HashMap<>();
 
@@ -142,7 +146,38 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_1.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/empty_outcome.dmn")
+    public void emptyOutcome() {
+        Map<String, Object> processVariablesInput = new HashMap<>();
+
+        processVariablesInput.put("input1", "NOT TEST");
+
+        Map<String, Object> result = ruleService.createExecuteDecisionBuilder()
+            .decisionKey("EmptyOutcome")
+            .variables(processVariablesInput)
+            .executeWithSingleResult();
+
+        Assert.assertNull(result);
+    }
+
+    @Test
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/empty_outcomes.dmn")
+    public void emptyOneEmptyOutcome() {
+        Map<String, Object> processVariablesInput = new HashMap<>();
+
+        processVariablesInput.put("input1", 11D);
+
+        Map<String, Object> result = ruleService.createExecuteDecisionBuilder()
+            .decisionKey("decision")
+            .variables(processVariablesInput)
+            .executeWithSingleResult();
+
+        Assert.assertEquals(1, result.keySet().size());
+        Assert.assertEquals(11d, result.get("output2"));
+    }
+
+    @Test
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_1.dmn")
     public void conlusionExpressionDouble() {
         Map<String, Object> result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -153,7 +188,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_2.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_2.dmn")
     public void conclusionExpressionCastException() {
         DecisionExecutionAuditContainer result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -163,7 +198,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_2.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_2.dmn")
     public void failedStateMissingInputVariable() {
         DecisionExecutionAuditContainer result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -172,17 +207,17 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_3.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_3.dmn")
     public void missingInputVariableBoolean() {
         DecisionExecutionAuditContainer result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
-                .variables(new HashMap<String, Object>())
+                .variables(new HashMap<>())
                 .executeWithAuditTrail();
         Assert.assertEquals(false, result.isFailed());
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_4.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_4.dmn")
     public void failedStateUnknownFunctionOutcomeExpression() {
         DecisionExecutionAuditContainer result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -192,7 +227,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_5.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_5.dmn")
     public void outcomeVariableReference() {
         Map<String, Object> processVariablesInput = new HashMap<>();
 
@@ -209,7 +244,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_2.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/outcome_expression_2.dmn")
     public void failedStateCouldNotCreateOutcome() {
         DecisionExecutionAuditContainer result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -219,7 +254,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/empty_expressions.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/empty_expressions.dmn")
     public void emptyExpressions() {
         DecisionExecutionAuditContainer result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -229,7 +264,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/dates_4.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/dates_4.dmn")
     public void inputNull() {
         Map<String, Object> result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
@@ -240,7 +275,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/reservered_word.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/reservered_word.dmn")
     public void reservedWord() {
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
         LocalDate localDate = dateTimeFormatter.parseLocalDate("2015-09-18");
@@ -254,7 +289,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/empty_tokens.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/empty_tokens.dmn")
     public void emptyTokens() {
         Map<String, Object> processVariablesInput = new HashMap<>();
         processVariablesInput.put("input1", "AAA");
@@ -272,7 +307,7 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/risk_rating_spec_example.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/risk_rating_spec_example.dmn")
     public void riskRating() {
         Map<String, Object> processVariablesInput = new HashMap<>();
         processVariablesInput.put("age", 17);
@@ -307,7 +342,42 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/numbers_1.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/risk_rating_spec_example_DMN12.dmn")
+    public void riskRatingDMN12() {
+        Map<String, Object> processVariablesInput = new HashMap<>();
+        processVariablesInput.put("age", 17);
+        processVariablesInput.put("riskcategory", "HIGH");
+        processVariablesInput.put("debtreview", true);
+
+        List<Map<String, Object>> result = ruleService.createExecuteDecisionBuilder()
+            .decisionKey("RiskRatingDecisionTable")
+            .variables(processVariablesInput)
+            .execute();
+
+        Map<String, Object> ruleResult1 = result.get(0);
+        Map<String, Object> ruleResult2 = result.get(1);
+        Map<String, Object> ruleResult3 = result.get(2);
+        Map<String, Object> ruleResult4 = result.get(3);
+
+        Assert.assertEquals("DECLINE", ruleResult1.get("routing"));
+        Assert.assertEquals("Applicant too young", ruleResult1.get("reason"));
+        Assert.assertEquals("NONE", ruleResult1.get("reviewlevel"));
+
+        Assert.assertEquals("REFER", ruleResult2.get("routing"));
+        Assert.assertEquals("Applicant under debt review", ruleResult2.get("reason"));
+        Assert.assertEquals("LEVEL 2", ruleResult2.get("reviewlevel"));
+
+        Assert.assertEquals("REFER", ruleResult3.get("routing"));
+        Assert.assertEquals("High risk application", ruleResult3.get("reason"));
+        Assert.assertEquals("LEVEL 1", ruleResult3.get("reviewlevel"));
+
+        Assert.assertEquals("ACCEPT", ruleResult4.get("routing"));
+        Assert.assertEquals("Acceptable", ruleResult4.get("reason"));
+        Assert.assertEquals("NONE", ruleResult4.get("reviewlevel"));
+    }
+
+    @Test
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/numbers_1.dmn")
     public void testNumbers1() {
         Map<String, Object> processVariablesInput = new HashMap<>();
         processVariablesInput.put("count", 101L);
@@ -324,19 +394,38 @@ public class RuntimeTest extends AbstractFlowableDmnTest {
     }
 
     @Test
-    @DmnDeploymentAnnotation(resources = "org/flowable/dmn/engine/test/deployment/simple.dmn")
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/simple.dmn")
     public void testEqualsStringImplicitOperator() {
         Map<String, Object> processVariablesInput = new HashMap<>();
         processVariablesInput.put("inputVariable1", 1D);
         processVariablesInput.put("inputVariable2", "test2");
+
+        DecisionExecutionAuditContainer result = ruleService.createExecuteDecisionBuilder()
+                .decisionKey("decision")
+                .variables(processVariablesInput)
+                .executeWithAuditTrail();
+
+        Assert.assertNotNull(result);
+        Assert.assertEquals(true, result.getRuleExecutions().get(1).getConditionResults().get(0).getResult());
+        Assert.assertEquals(true, result.getRuleExecutions().get(2).getConditionResults().get(0).getResult());
+        Assert.assertEquals(true, result.getRuleExecutions().get(3).getConditionResults().get(0).getResult());
+    }
+
+
+    @Test
+    @DmnDeployment(resources = "org/flowable/dmn/engine/test/deployment/json.dmn")
+    public void testJsonNumbers1() {
+        Map<String, Object> processVariablesInput = new HashMap<>();
+        ObjectNode inputNode = objectMapper.createObjectNode();
+        inputNode.put("value", 5L);
+
+        processVariablesInput.put("inputVariable1", inputNode);
 
         Map<String, Object> result = ruleService.createExecuteDecisionBuilder()
                 .decisionKey("decision")
                 .variables(processVariablesInput)
                 .executeWithSingleResult();
 
-        Assert.assertNotNull(result);
-
+        Assert.assertEquals("result2", result.get("outputVariable1"));
     }
-
 }

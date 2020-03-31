@@ -13,14 +13,14 @@
 
 package org.flowable.job.service.impl.asyncexecutor;
 
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.api.delegate.event.FlowableEventDispatcher;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandConfig;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandContextCloseListener;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.job.service.Job;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandConfig;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandContextCloseListener;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.job.api.Job;
 import org.flowable.job.service.event.impl.FlowableJobEventBuilder;
 import org.flowable.job.service.impl.util.CommandContextUtil;
 import org.slf4j.Logger;
@@ -54,7 +54,7 @@ public class FailedJobListener implements CommandContextCloseListener {
     @Override
     public void closed(CommandContext context) {
         FlowableEventDispatcher eventDispatcher = CommandContextUtil.getEventDispatcher();
-        if (eventDispatcher.isEnabled()) {
+        if (eventDispatcher != null && eventDispatcher.isEnabled()) {
             eventDispatcher.dispatchEvent(
                     FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_EXECUTION_SUCCESS, job));
         }
@@ -62,8 +62,9 @@ public class FailedJobListener implements CommandContextCloseListener {
 
     @Override
     public void closeFailure(CommandContext commandContext) {
-        if (CommandContextUtil.getEventDispatcher().isEnabled()) {
-            CommandContextUtil.getEventDispatcher().dispatchEvent(FlowableJobEventBuilder.createEntityExceptionEvent(
+        FlowableEventDispatcher eventDispatcher = CommandContextUtil.getEventDispatcher();
+        if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+            eventDispatcher.dispatchEvent(FlowableJobEventBuilder.createEntityExceptionEvent(
                     FlowableEngineEventType.JOB_EXECUTION_FAILURE, job, commandContext.getException()));
         }
 
@@ -75,4 +76,13 @@ public class FailedJobListener implements CommandContextCloseListener {
         commandExecutor.execute(commandConfig, cmd);
     }
 
+    @Override
+    public Integer order() {
+        return 20;
+    }
+    
+    @Override
+    public boolean multipleAllowed() {
+        return true;
+    }
 }

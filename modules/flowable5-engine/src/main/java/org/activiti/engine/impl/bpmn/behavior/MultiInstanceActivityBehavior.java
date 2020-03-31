@@ -33,10 +33,10 @@ import org.activiti.engine.impl.pvm.delegate.SubProcessActivityBehavior;
 import org.activiti.engine.impl.pvm.process.ActivityImpl;
 import org.activiti.engine.impl.pvm.runtime.AtomicOperation;
 import org.activiti.engine.impl.pvm.runtime.InterpretableExecution;
+import org.flowable.common.engine.api.delegate.Expression;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.ExecutionListener;
 import org.flowable.engine.impl.delegate.ActivityBehavior;
-import org.flowable.variable.service.delegate.Expression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +81,7 @@ public abstract class MultiInstanceActivityBehavior extends FlowNodeActivityBeha
         setInnerActivityBehavior(innerActivityBehavior);
     }
 
+    @Override
     public void execute(DelegateExecution execution) {
         ActivityExecution activityExecution = (ActivityExecution) execution;
         if (getLocalLoopVariable(activityExecution, getCollectionElementIndexVariable()) == null) {
@@ -101,21 +102,25 @@ public abstract class MultiInstanceActivityBehavior extends FlowNodeActivityBeha
     protected abstract void createInstances(ActivityExecution execution);
 
     // Intercepts signals, and delegates it to the wrapped {@link ActivityBehavior}.
+    @Override
     public void signal(ActivityExecution execution, String signalName, Object signalData) throws Exception {
         innerActivityBehavior.signal(execution, signalName, signalData);
     }
 
     // required for supporting embedded subprocesses
+    @Override
     public void lastExecutionEnded(ActivityExecution execution) {
         ScopeUtil.createEventScopeExecution((ExecutionEntity) execution);
         leave(execution);
     }
 
     // required for supporting external subprocesses
+    @Override
     public void completing(DelegateExecution execution, DelegateExecution subProcessInstance) throws Exception {
     }
 
     // required for supporting external subprocesses
+    @Override
     public void completed(ActivityExecution execution) throws Exception {
         leave(execution);
     }
@@ -136,7 +141,7 @@ public abstract class MultiInstanceActivityBehavior extends FlowNodeActivityBeha
         } else if (collectionVariable != null) {
             Object obj = execution.getVariable(collectionVariable);
             if (obj == null) {
-                throw new ActivitiIllegalArgumentException("Variable " + collectionVariable + " is not found");
+                throw new ActivitiIllegalArgumentException("Variable " + collectionVariable + " was not found");
             }
             if (!(obj instanceof Collection)) {
                 throw new ActivitiIllegalArgumentException("Variable " + collectionVariable + "' is not a Collection");

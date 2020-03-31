@@ -12,28 +12,37 @@
  */
 package org.flowable.variable.service.impl.types;
 
+import org.flowable.variable.api.types.ValueFields;
+import org.flowable.variable.api.types.VariableType;
+
 /**
  * @author Joram Barrez
  */
 public class IntegerType implements VariableType {
 
+    public static final String TYPE_NAME = "integer";
+
     private static final long serialVersionUID = 1L;
 
+    @Override
     public String getTypeName() {
-        return "integer";
+        return TYPE_NAME;
     }
 
+    @Override
     public boolean isCachable() {
         return true;
     }
 
+    @Override
     public Object getValue(ValueFields valueFields) {
         if (valueFields.getLongValue() != null) {
-            return new Integer(valueFields.getLongValue().intValue());
+            return Integer.valueOf(valueFields.getLongValue().intValue());
         }
         return null;
     }
 
+    @Override
     public void setValue(Object value, ValueFields valueFields) {
         if (value != null) {
             valueFields.setLongValue(((Integer) value).longValue());
@@ -44,6 +53,7 @@ public class IntegerType implements VariableType {
         }
     }
 
+    @Override
     public boolean isAbleToStore(Object value) {
         if (value == null) {
             return true;

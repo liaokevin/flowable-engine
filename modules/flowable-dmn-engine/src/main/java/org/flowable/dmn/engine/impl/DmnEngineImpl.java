@@ -12,6 +12,7 @@
  */
 package org.flowable.dmn.engine.impl;
 
+import org.flowable.common.engine.api.engine.EngineLifecycleListener;
 import org.flowable.dmn.api.DmnHistoryService;
 import org.flowable.dmn.api.DmnManagementService;
 import org.flowable.dmn.api.DmnRepositoryService;
@@ -43,6 +44,10 @@ public class DmnEngineImpl implements DmnEngine {
         this.dmnRepositoryService = dmnEngineConfiguration.getDmnRepositoryService();
         this.dmnRuleService = dmnEngineConfiguration.getDmnRuleService();
         this.dmnHistoryService = dmnEngineConfiguration.getDmnHistoryService();
+        
+        if (dmnEngineConfiguration.getSchemaManagementCmd() != null) {
+            dmnEngineConfiguration.getCommandExecutor().execute(dmnEngineConfiguration.getSchemaCommandConfig(), dmnEngineConfiguration.getSchemaManagementCmd());
+        }
 
         if (name == null) {
             LOGGER.info("default flowable DmnEngine created");
@@ -51,35 +56,55 @@ public class DmnEngineImpl implements DmnEngine {
         }
 
         DmnEngines.registerDmnEngine(this);
+
+        if (dmnEngineConfiguration.getEngineLifecycleListeners() != null) {
+            for (EngineLifecycleListener engineLifecycleListener : dmnEngineConfiguration.getEngineLifecycleListeners()) {
+                engineLifecycleListener.onEngineBuilt(this);
+            }
+        }
     }
 
+    @Override
     public void close() {
         DmnEngines.unregister(this);
+        dmnEngineConfiguration.close();
+
+        if (dmnEngineConfiguration.getEngineLifecycleListeners() != null) {
+            for (EngineLifecycleListener engineLifecycleListener : dmnEngineConfiguration.getEngineLifecycleListeners()) {
+                engineLifecycleListener.onEngineClosed(this);
+            }
+        }
     }
 
     // getters and setters
     // //////////////////////////////////////////////////////
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public DmnManagementService getDmnManagementService() {
         return dmnManagementService;
     }
 
+    @Override
     public DmnRepositoryService getDmnRepositoryService() {
         return dmnRepositoryService;
     }
 
+    @Override
     public DmnRuleService getDmnRuleService() {
         return dmnRuleService;
     }
     
+    @Override
     public DmnHistoryService getDmnHistoryService() {
         return dmnHistoryService;
     }
 
+    @Override
     public DmnEngineConfiguration getDmnEngineConfiguration() {
         return dmnEngineConfiguration;
     }

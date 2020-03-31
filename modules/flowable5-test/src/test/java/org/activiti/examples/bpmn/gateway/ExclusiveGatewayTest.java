@@ -16,7 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.api.FlowableException;
+import org.flowable.common.engine.api.FlowableException;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 
@@ -39,7 +39,7 @@ public class ExclusiveGatewayTest extends PluggableFlowableTestCase {
         // Test with input == 1
         variables.put("input", 1);
         ProcessInstance pi = runtimeService.startProcessInstanceByKey("exclusiveGateway", variables);
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(pi.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(pi.getId()).singleResult();
         assertEquals("Send e-mail for more information", task.getName());
 
         // Test with input == 2

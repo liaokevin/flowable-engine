@@ -13,19 +13,30 @@
 
 package org.flowable.engine.test.bpmn.event.signal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+
 import java.util.List;
 
-import org.flowable.engine.impl.EventSubscriptionQueryImpl;
+import org.flowable.common.engine.impl.history.HistoryLevel;
+import org.flowable.engine.history.HistoricActivityInstance;
+import org.flowable.engine.impl.test.HistoryTestHelper;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
+import org.flowable.engine.runtime.ActivityInstance;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
+import org.flowable.eventsubscription.service.impl.EventSubscriptionQueryImpl;
+import org.flowable.task.api.Task;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Tijs Rademakers
+ * @author Filip Hrisafov
  */
 public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
 
+    @Test
     @Deployment
     public void testInterruptingUnderProcessDefinition() {
         testInterruptingUnderProcessDefinition(1, 3);
@@ -34,6 +45,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
     /**
      * Checks if unused event subscriptions are properly deleted.
      */
+    @Test
     @Deployment
     public void testTwoInterruptingUnderProcessDefinition() {
         testInterruptingUnderProcessDefinition(2, 4);
@@ -49,7 +61,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(numberOfExecutions, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
 
         // if we trigger the usertask, the process terminates and the event subscription is removed:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("task", task.getTaskDefinitionKey());
         taskService.complete(task.getId());
         assertEquals(0, createEventSubscriptionQuery().count());
@@ -70,6 +82,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
 
+    @Test
     @Deployment
     public void testNonInterruptingUnderProcessDefinition() {
 
@@ -86,7 +99,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(3, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
 
         // if we trigger the usertask, the process terminates and the event subscription is removed:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("task", task.getTaskDefinitionKey());
         taskService.complete(task.getId());
         assertEquals(0, createEventSubscriptionQuery().count());
@@ -145,6 +158,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
 
+    @Test
     @Deployment
     public void testNonInterruptingMultipleInstances() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("process");
@@ -168,7 +182,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(1, createEventSubscriptionQuery().count());
 
         // now let's first complete the task in the main flow:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("task").singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("task").singleResult();
         taskService.complete(task.getId());
 
         assertEquals(0, createEventSubscriptionQuery().count());
@@ -190,6 +204,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
 
+    @Test
     @Deployment
     public void testNonInterruptingSubProcess() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("process");
@@ -213,7 +228,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(1, createEventSubscriptionQuery().count());
 
         // now let's first complete the task in the main flow:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("task").singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("task").singleResult();
         taskService.complete(task.getId());
 
         assertEquals(0, createEventSubscriptionQuery().count());
@@ -235,6 +250,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
 
+    @Test
     @Deployment
     public void testInterruptingSubProcess() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("process");
@@ -252,13 +268,14 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, createEventSubscriptionQuery().count());
 
         // now let's complete the task in the event subprocess
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("eventSubProcessTask").list().get(0);
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("eventSubProcessTask").list().get(0);
         taskService.complete(task.getId());
 
         // done!
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
     
+    @Test
     @Deployment
     public void testStartingAdditionalTasks() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("startingAdditionalTasks");
@@ -275,7 +292,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(1, createEventSubscriptionQuery().count());
 
         // now let's first complete the task in the main flow:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
         taskService.complete(task.getId());
 
         assertEquals(2, createEventSubscriptionQuery().count());
@@ -320,6 +337,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
     
+    @Test
     @Deployment(resources="org/flowable/engine/test/bpmn/event/signal/SignalEventSubprocessTest.testStartingAdditionalTasks.bpmn20.xml")
     public void testStartingAdditionalTasksNoNestedEventSubProcess() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("startingAdditionalTasks");
@@ -336,7 +354,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(1, createEventSubscriptionQuery().count());
 
         // now let's first complete the task in the main flow:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
         taskService.complete(task.getId());
 
         assertEquals(2, createEventSubscriptionQuery().count());
@@ -355,6 +373,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
     
+    @Test
     @Deployment(resources="org/flowable/engine/test/bpmn/event/signal/SignalEventSubprocessTest.testStartingAdditionalTasks.bpmn20.xml")
     public void testStartingAdditionalTasksWithNestedEventSubProcess() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("startingAdditionalTasks");
@@ -363,7 +382,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(1, createEventSubscriptionQuery().count());
 
         // now let's first complete the task in the main flow:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
         taskService.complete(task.getId());
 
         assertEquals(2, createEventSubscriptionQuery().count());
@@ -416,7 +435,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         
         assertEquals(0, createEventSubscriptionQuery().count());
         
-        List<org.flowable.task.service.Task> tasks = taskService.createTaskQuery().taskDefinitionKey("additionalTask").list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().taskDefinitionKey("additionalTask").list();
         assertEquals(2, tasks.size());
         
         taskService.complete(tasks.get(0).getId());
@@ -430,6 +449,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
     
+    @Test
     @Deployment
     public void testStartingAdditionalTasksInterrupting() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("startingAdditionalTasks");
@@ -446,7 +466,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(1, createEventSubscriptionQuery().count());
 
         // now let's first complete the task in the main flow:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
         taskService.complete(task.getId());
 
         assertEquals(2, createEventSubscriptionQuery().count());
@@ -472,6 +492,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
     }
     
+    @Test
     @Deployment(resources="org/flowable/engine/test/bpmn/event/signal/SignalEventSubprocessTest.testStartingAdditionalTasksInterrupting.bpmn20.xml")
     public void testStartingAdditionalTasksInterruptingWithMainEventSubProcessInterrupt() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("startingAdditionalTasks");
@@ -488,7 +509,7 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
         assertEquals(1, createEventSubscriptionQuery().count());
 
         // now let's first complete the task in the main flow:
-        org.flowable.task.service.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().taskDefinitionKey("task1").singleResult();
         taskService.complete(task.getId());
 
         assertEquals(2, createEventSubscriptionQuery().count());
@@ -516,6 +537,129 @@ public class SignalEventSubprocessTest extends PluggableFlowableTestCase {
 
         // done!
         assertEquals(0, runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).count());
+    }
+
+    @Test
+    @Deployment
+    public void testNonInterruptingSimpleActivities() {
+        runtimeService.startProcessInstanceByKey("testSimpleSignalEventSubProcess");
+
+        assertThat(runtimeService.createActivityInstanceQuery().list())
+            .extracting(ActivityInstance::getActivityType, ActivityInstance::getActivityId)
+            .containsExactlyInAnyOrder(
+                tuple("startEvent", "start"),
+                tuple("sequenceFlow", "flow1"),
+                tuple("userTask", "task")
+            );
+
+        // Signal the Event sub process
+        runtimeService.signalEventReceived("eventSignal");
+
+        assertThat(runtimeService.createActivityInstanceQuery().list())
+            .extracting(ActivityInstance::getActivityType, ActivityInstance::getActivityId)
+            .containsExactlyInAnyOrder(
+                tuple("startEvent", "start"),
+                tuple("sequenceFlow", "flow1"),
+                tuple("userTask", "task"),
+                tuple("eventSubProcess", "signalEventSubProcess"),
+                tuple("startEvent", "eventSubProcessSignalStart"),
+                tuple("sequenceFlow", "eventSubProcessFlow1"),
+                tuple("userTask", "eventSubProcessTask1")
+            );
+
+        // Complete the user task in the event sub process
+        Task eventSubProcessTask = taskService.createTaskQuery().taskDefinitionKey("eventSubProcessTask1").singleResult();
+        assertThat(eventSubProcessTask).isNotNull();
+        taskService.complete(eventSubProcessTask.getId());
+
+        assertThat(runtimeService.createActivityInstanceQuery().list())
+            .extracting(ActivityInstance::getActivityType, ActivityInstance::getActivityId)
+            .containsExactlyInAnyOrder(
+                tuple("startEvent", "start"),
+                tuple("sequenceFlow", "flow1"),
+                tuple("userTask", "task"),
+                tuple("eventSubProcess", "signalEventSubProcess"),
+                tuple("startEvent", "eventSubProcessSignalStart"),
+                tuple("sequenceFlow", "eventSubProcessFlow1"),
+                tuple("userTask", "eventSubProcessTask1"),
+                tuple("sequenceFlow", "eventSubProcessFlow2"),
+                tuple("endEvent", "eventSubProcessEnd")
+            );
+
+        ActivityInstance eventSubProcessActivity = runtimeService.createActivityInstanceQuery()
+            .activityType("eventSubProcess")
+            .activityId("signalEventSubProcess")
+            .singleResult();
+        assertThat(eventSubProcessActivity).isNotNull();
+        assertThat(eventSubProcessActivity.getEndTime()).isNotNull();
+
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            assertThat(historyService.createHistoricActivityInstanceQuery().list())
+                .extracting(HistoricActivityInstance::getActivityType, HistoricActivityInstance::getActivityId)
+                .containsExactlyInAnyOrder(
+                    tuple("startEvent", "start"),
+                    tuple("sequenceFlow", "flow1"),
+                    tuple("userTask", "task"),
+                    tuple("eventSubProcess", "signalEventSubProcess"),
+                    tuple("startEvent", "eventSubProcessSignalStart"),
+                    tuple("sequenceFlow", "eventSubProcessFlow1"),
+                    tuple("userTask", "eventSubProcessTask1"),
+                    tuple("sequenceFlow", "eventSubProcessFlow2"),
+                    tuple("endEvent", "eventSubProcessEnd")
+                );
+        }
+    }
+
+    @Test
+    @Deployment
+    public void testInterruptingSimpleActivities() {
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("testSimpleSignalEventSubProcess");
+
+        assertThat(runtimeService.createActivityInstanceQuery().list())
+            .extracting(ActivityInstance::getActivityType, ActivityInstance::getActivityId)
+            .containsExactlyInAnyOrder(
+                tuple("startEvent", "start"),
+                tuple("sequenceFlow", "flow1"),
+                tuple("userTask", "task")
+            );
+
+        // Signal the Event sub process
+        runtimeService.signalEventReceived("eventSignal");
+
+        assertThat(runtimeService.createActivityInstanceQuery().list())
+            .extracting(ActivityInstance::getActivityType, ActivityInstance::getActivityId)
+            .containsExactlyInAnyOrder(
+                tuple("startEvent", "start"),
+                tuple("sequenceFlow", "flow1"),
+                tuple("userTask", "task"),
+                tuple("eventSubProcess", "signalEventSubProcess"),
+                tuple("startEvent", "eventSubProcessSignalStart"),
+                tuple("sequenceFlow", "eventSubProcessFlow1"),
+                tuple("userTask", "eventSubProcessTask1")
+            );
+
+        // Complete the user task in the event sub process
+        Task eventSubProcessTask = taskService.createTaskQuery().taskDefinitionKey("eventSubProcessTask1").singleResult();
+        assertThat(eventSubProcessTask).isNotNull();
+        taskService.complete(eventSubProcessTask.getId());
+
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            assertThat(historyService.createHistoricActivityInstanceQuery().list())
+                .extracting(HistoricActivityInstance::getActivityType, HistoricActivityInstance::getActivityId)
+                .containsExactlyInAnyOrder(
+                    tuple("startEvent", "start"),
+                    tuple("sequenceFlow", "flow1"),
+                    tuple("userTask", "task"),
+                    tuple("eventSubProcess", "signalEventSubProcess"),
+                    tuple("startEvent", "eventSubProcessSignalStart"),
+                    tuple("sequenceFlow", "eventSubProcessFlow1"),
+                    tuple("userTask", "eventSubProcessTask1"),
+                    tuple("sequenceFlow", "eventSubProcessFlow2"),
+                    tuple("endEvent", "eventSubProcessEnd")
+                );
+        }
+
+        assertProcessEnded(processInstance.getId());
     }
 
     private EventSubscriptionQueryImpl createEventSubscriptionQuery() {

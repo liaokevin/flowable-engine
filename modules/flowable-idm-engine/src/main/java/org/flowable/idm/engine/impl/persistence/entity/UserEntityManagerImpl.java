@@ -16,7 +16,6 @@ package org.flowable.idm.engine.impl.persistence.entity;
 import java.util.List;
 import java.util.Map;
 
-import org.flowable.engine.common.impl.persistence.entity.data.DataManager;
 import org.flowable.idm.api.PasswordEncoder;
 import org.flowable.idm.api.PasswordSalt;
 import org.flowable.idm.api.Picture;
@@ -30,25 +29,20 @@ import org.flowable.idm.engine.impl.persistence.entity.data.UserDataManager;
  * @author Tijs Rademakers
  * @author Joram Barrez
  */
-public class UserEntityManagerImpl extends AbstractEntityManager<UserEntity> implements UserEntityManager {
-
-    protected UserDataManager userDataManager;
+public class UserEntityManagerImpl
+    extends AbstractIdmEngineEntityManager<UserEntity, UserDataManager>
+    implements UserEntityManager {
 
     public UserEntityManagerImpl(IdmEngineConfiguration idmEngineConfiguration, UserDataManager userDataManager) {
-        super(idmEngineConfiguration);
-        this.userDataManager = userDataManager;
-    }
-
-    @Override
-    protected DataManager<UserEntity> getDataManager() {
-        return userDataManager;
+        super(idmEngineConfiguration, userDataManager);
     }
 
     @Override
     public UserEntity findById(String entityId) {
-        return userDataManager.findById(entityId);
+        return dataManager.findById(entityId);
     }
 
+    @Override
     public User createNewUser(String userId) {
         UserEntity userEntity = create();
         userEntity.setId(userId);
@@ -56,10 +50,12 @@ public class UserEntityManagerImpl extends AbstractEntityManager<UserEntity> imp
         return userEntity;
     }
 
+    @Override
     public void updateUser(User updatedUser) {
         super.update((UserEntity) updatedUser);
     }
 
+    @Override
     public void delete(UserEntity userEntity) {
         super.delete(userEntity);
         deletePicture(userEntity);
@@ -73,6 +69,7 @@ public class UserEntityManagerImpl extends AbstractEntityManager<UserEntity> imp
         }
     }
 
+    @Override
     public void delete(String userId) {
         UserEntity user = findById(userId);
         if (user != null) {
@@ -85,18 +82,22 @@ public class UserEntityManagerImpl extends AbstractEntityManager<UserEntity> imp
         }
     }
 
+    @Override
     public List<User> findUserByQueryCriteria(UserQueryImpl query) {
-        return userDataManager.findUserByQueryCriteria(query);
+        return dataManager.findUserByQueryCriteria(query);
     }
 
+    @Override
     public long findUserCountByQueryCriteria(UserQueryImpl query) {
-        return userDataManager.findUserCountByQueryCriteria(query);
+        return dataManager.findUserCountByQueryCriteria(query);
     }
 
+    @Override
     public UserQuery createNewUserQuery() {
         return new UserQueryImpl(getCommandExecutor());
     }
 
+    @Override
     public Boolean checkPassword(String userId, String password, PasswordEncoder passwordEncoder, PasswordSalt salt) {
         User user = null;
 
@@ -104,15 +105,17 @@ public class UserEntityManagerImpl extends AbstractEntityManager<UserEntity> imp
             user = findById(userId);
         }
 
-        return (user != null) && (password != null) && (passwordEncoder.isMatches(password, user.getPassword(), salt));
+        return (user != null) && (password != null) && passwordEncoder.isMatches(password, user.getPassword(), salt);
     }
 
+    @Override
     public List<User> findUsersByNativeQuery(Map<String, Object> parameterMap) {
-        return userDataManager.findUsersByNativeQuery(parameterMap);
+        return dataManager.findUsersByNativeQuery(parameterMap);
     }
 
+    @Override
     public long findUserCountByNativeQuery(Map<String, Object> parameterMap) {
-        return userDataManager.findUserCountByNativeQuery(parameterMap);
+        return dataManager.findUserCountByNativeQuery(parameterMap);
     }
 
     @Override
@@ -130,20 +133,28 @@ public class UserEntityManagerImpl extends AbstractEntityManager<UserEntity> imp
     public void setUserPicture(User user, Picture picture) {
         UserEntity userEntity = (UserEntity) user;
         userEntity.setPicture(picture);
-        userDataManager.update(userEntity);
+        dataManager.update(userEntity);
     }
 
     @Override
     public List<User> findUsersByPrivilegeId(String name) {
-        return userDataManager.findUsersByPrivilegeId(name);
+        return dataManager.findUsersByPrivilegeId(name);
     }
 
     public UserDataManager getUserDataManager() {
-        return userDataManager;
+        return dataManager;
     }
 
     public void setUserDataManager(UserDataManager userDataManager) {
-        this.userDataManager = userDataManager;
+        this.dataManager = userDataManager;
+    }
+
+    protected IdentityInfoEntityManager getIdentityInfoEntityManager() {
+        return engineConfiguration.getIdentityInfoEntityManager();
+    }
+
+    protected MembershipEntityManager getMembershipEntityManager() {
+        return engineConfiguration.getMembershipEntityManager();
     }
 
 }

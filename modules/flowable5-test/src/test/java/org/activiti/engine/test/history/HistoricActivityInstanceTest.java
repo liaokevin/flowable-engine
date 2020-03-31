@@ -16,8 +16,8 @@ package org.activiti.engine.test.history;
 import java.util.List;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.history.HistoricActivityInstanceQuery;
 import org.flowable.engine.history.HistoricProcessInstance;
@@ -192,7 +192,7 @@ public class HistoricActivityInstanceTest extends PluggableFlowableTestCase {
                 .activityId("theTask")
                 .singleResult();
 
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals(task.getId(), historicActivityInstance.getTaskId());
         assertEquals("kermit", historicActivityInstance.getAssignee());
     }
@@ -288,7 +288,7 @@ public class HistoricActivityInstanceTest extends PluggableFlowableTestCase {
     public void testBoundaryEvent() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("boundaryEventProcess");
         // Complete the task with the boundary-event on it
-        org.flowable.task.service.Task task = taskService.createTaskQuery()
+        org.flowable.task.api.Task task = taskService.createTaskQuery()
                 .processInstanceId(processInstance.getId())
                 .singleResult();
         assertNotNull(task);
@@ -357,7 +357,7 @@ public class HistoricActivityInstanceTest extends PluggableFlowableTestCase {
     public void testParallelJoinEndTime() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("forkJoin");
 
-        List<org.flowable.task.service.Task> tasksToComplete = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
+        List<org.flowable.task.api.Task> tasksToComplete = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
         assertEquals(2, tasksToComplete.size());
 
         // Complete both tasks, second task-complete should end the fork-gateway and set time

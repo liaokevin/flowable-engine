@@ -15,19 +15,21 @@ package org.flowable.idm.engine.impl;
 
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.query.AbstractQuery;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.query.CacheAwareQuery;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.impl.query.AbstractQuery;
 import org.flowable.idm.api.Group;
 import org.flowable.idm.api.GroupQuery;
 import org.flowable.idm.api.GroupQueryProperty;
+import org.flowable.idm.engine.impl.persistence.entity.GroupEntity;
 import org.flowable.idm.engine.impl.util.CommandContextUtil;
 
 /**
  * @author Joram Barrez
  */
-public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements GroupQuery {
+public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements GroupQuery, CacheAwareQuery<GroupEntity> {
 
     private static final long serialVersionUID = 1L;
     protected String id;
@@ -50,6 +52,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         super(commandExecutor);
     }
 
+    @Override
     public GroupQuery groupId(String id) {
         if (id == null) {
             throw new FlowableIllegalArgumentException("Provided id is null");
@@ -58,6 +61,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         return this;
     }
 
+    @Override
     public GroupQuery groupIds(List<String> ids) {
         if (ids == null) {
             throw new FlowableIllegalArgumentException("Provided id list is null");
@@ -66,6 +70,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         return this;
     }
 
+    @Override
     public GroupQuery groupName(String name) {
         if (name == null) {
             throw new FlowableIllegalArgumentException("Provided name is null");
@@ -74,6 +79,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         return this;
     }
 
+    @Override
     public GroupQuery groupNameLike(String nameLike) {
         if (nameLike == null) {
             throw new FlowableIllegalArgumentException("Provided name is null");
@@ -82,6 +88,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         return this;
     }
 
+    @Override
     public GroupQuery groupNameLikeIgnoreCase(String nameLikeIgnoreCase) {
         if (nameLikeIgnoreCase == null) {
             throw new FlowableIllegalArgumentException("Provided name is null");
@@ -90,6 +97,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         return this;
     }
 
+    @Override
     public GroupQuery groupType(String type) {
         if (type == null) {
             throw new FlowableIllegalArgumentException("Provided type is null");
@@ -98,6 +106,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         return this;
     }
 
+    @Override
     public GroupQuery groupMember(String userId) {
         if (userId == null) {
             throw new FlowableIllegalArgumentException("Provided userId is null");
@@ -106,6 +115,7 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
         return this;
     }
 
+    @Override
     public GroupQuery groupMembers(List<String> userIds) {
         if (userIds == null) {
             throw new FlowableIllegalArgumentException("Provided userIds is null");
@@ -116,32 +126,36 @@ public class GroupQueryImpl extends AbstractQuery<GroupQuery, Group> implements 
 
     // sorting ////////////////////////////////////////////////////////
 
+    @Override
     public GroupQuery orderByGroupId() {
         return orderBy(GroupQueryProperty.GROUP_ID);
     }
 
+    @Override
     public GroupQuery orderByGroupName() {
         return orderBy(GroupQueryProperty.NAME);
     }
 
+    @Override
     public GroupQuery orderByGroupType() {
         return orderBy(GroupQueryProperty.TYPE);
     }
 
     // results ////////////////////////////////////////////////////////
 
+    @Override
     public long executeCount(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getGroupEntityManager(commandContext).findGroupCountByQueryCriteria(this);
     }
 
+    @Override
     public List<Group> executeList(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getGroupEntityManager(commandContext).findGroupByQueryCriteria(this);
     }
 
     // getters ////////////////////////////////////////////////////////
 
+    @Override
     public String getId() {
         return id;
     }

@@ -20,13 +20,13 @@ import org.flowable.dmn.engine.DmnEngineConfiguration;
 import org.flowable.dmn.engine.impl.HistoricDecisionExecutionQueryImpl;
 import org.flowable.dmn.engine.impl.persistence.entity.HistoricDecisionExecutionEntity;
 import org.flowable.dmn.engine.impl.persistence.entity.HistoricDecisionExecutionEntityImpl;
-import org.flowable.dmn.engine.impl.persistence.entity.data.AbstractDataManager;
+import org.flowable.dmn.engine.impl.persistence.entity.data.AbstractDmnDataManager;
 import org.flowable.dmn.engine.impl.persistence.entity.data.HistoricDecisionExecutionDataManager;
 
 /**
  * @author Tijs Rademakers
  */
-public class MybatisHistoricDecisionExecutionDataManager extends AbstractDataManager<HistoricDecisionExecutionEntity> implements HistoricDecisionExecutionDataManager {
+public class MybatisHistoricDecisionExecutionDataManager extends AbstractDmnDataManager<HistoricDecisionExecutionEntity> implements HistoricDecisionExecutionDataManager {
 
     public MybatisHistoricDecisionExecutionDataManager(DmnEngineConfiguration dmnEngineConfiguration) {
         super(dmnEngineConfiguration);
@@ -44,13 +44,13 @@ public class MybatisHistoricDecisionExecutionDataManager extends AbstractDataMan
     
     @Override
     public void deleteHistoricDecisionExecutionsByDeploymentId(String deploymentId) {
-        getDbSqlSession().delete("deleteHistoricDecisionExecutionsByDeploymentId", deploymentId);
+        getDbSqlSession().delete("deleteHistoricDecisionExecutionsByDeploymentId", deploymentId, getManagedEntityClass());
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public List<DmnHistoricDecisionExecution> findHistoricDecisionExecutionsByQueryCriteria(HistoricDecisionExecutionQueryImpl decisionExecutionQuery) {
-        return getDbSqlSession().selectList("selectHistoricDecisionExecutionsByQueryCriteria", decisionExecutionQuery);
+        return getDbSqlSession().selectList("selectHistoricDecisionExecutionsByQueryCriteria", decisionExecutionQuery, getManagedEntityClass());
     }
 
     @Override

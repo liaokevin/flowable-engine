@@ -23,13 +23,14 @@ import org.activiti.engine.impl.db.PersistentObject;
 import org.activiti.engine.impl.persistence.AbstractManager;
 import org.activiti.engine.task.Comment;
 import org.activiti.engine.task.Event;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
 
 /**
  * @author Tom Baeyens
  */
 public class CommentEntityManager extends AbstractManager {
 
+    @Override
     public void delete(PersistentObject persistentObject) {
         checkHistoryEnabled();
         super.delete(persistentObject);
@@ -50,6 +51,7 @@ public class CommentEntityManager extends AbstractManager {
         }
     }
 
+    @Override
     public void insert(PersistentObject persistentObject) {
         checkHistoryEnabled();
         super.insert(persistentObject);

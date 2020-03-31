@@ -1,3 +1,15 @@
+/* Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.activiti.examples.bpmn.usertask;
 
 import java.util.ArrayList;
@@ -6,21 +18,21 @@ import java.util.List;
 import java.util.Map;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.api.delegate.event.FlowableEvent;
-import org.flowable.engine.common.api.delegate.event.FlowableEventListener;
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEvent;
+import org.flowable.common.engine.api.delegate.event.FlowableEventListener;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
-import org.flowable.task.service.history.HistoricTaskInstance;
+import org.flowable.task.api.history.HistoricTaskInstance;
 
 public class SkipExpressionUserTaskTest extends PluggableFlowableTestCase {
 
     @Deployment
     public void test() {
         ProcessInstance pi = runtimeService.startProcessInstanceByKey("skipExpressionUserTask");
-        List<org.flowable.task.service.Task> tasks = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().list();
         assertEquals(1, tasks.size());
         taskService.complete(tasks.get(0).getId());
         assertEquals(0, taskService.createTaskQuery().list().size());
@@ -29,7 +41,7 @@ public class SkipExpressionUserTaskTest extends PluggableFlowableTestCase {
         variables2.put("_ACTIVITI_SKIP_EXPRESSION_ENABLED", true);
         variables2.put("skip", false);
         ProcessInstance pi2 = runtimeService.startProcessInstanceByKey("skipExpressionUserTask", variables2);
-        List<org.flowable.task.service.Task> tasks2 = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks2 = taskService.createTaskQuery().list();
         assertEquals(1, tasks2.size());
         taskService.complete(tasks2.get(0).getId());
         assertEquals(0, taskService.createTaskQuery().list().size());
@@ -38,7 +50,7 @@ public class SkipExpressionUserTaskTest extends PluggableFlowableTestCase {
         variables3.put("_ACTIVITI_SKIP_EXPRESSION_ENABLED", true);
         variables3.put("skip", true);
         ProcessInstance pi3 = runtimeService.startProcessInstanceByKey("skipExpressionUserTask", variables3);
-        List<org.flowable.task.service.Task> tasks3 = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks3 = taskService.createTaskQuery().list();
         assertEquals(0, tasks3.size());
     }
 
@@ -60,7 +72,7 @@ public class SkipExpressionUserTaskTest extends PluggableFlowableTestCase {
         variables.put("skip3", false);
 
         ProcessInstance pi = runtimeService.startProcessInstanceByKey("skipExpressionUserTask-testSkipMultipleTasks", variables);
-        List<org.flowable.task.service.Task> tasks = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().list();
         assertEquals(1, tasks.size());
         assertEquals("Task3", tasks.get(0).getName());
     }
@@ -76,7 +88,7 @@ public class SkipExpressionUserTaskTest extends PluggableFlowableTestCase {
         runtimeService.startProcessInstanceByKey("skipExpressionUserTask", variables2);
         assertEquals(1, eventListener.getCreatedEvents().size());
         assertEquals(0, eventListener.getCompletedEvents().size());
-        List<org.flowable.task.service.Task> tasks = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().list();
         assertEquals(1, tasks.size());
         taskService.complete(tasks.get(0).getId());
         assertEquals(1, eventListener.getCompletedEvents().size());
@@ -147,6 +159,16 @@ public class SkipExpressionUserTaskTest extends PluggableFlowableTestCase {
         public void clearEvents() {
             this.createdEvents.clear();
             this.completedEvents.clear();
+        }
+        
+        @Override
+        public boolean isFireOnTransactionLifecycleEvent() {
+            return false;
+        }
+
+        @Override
+        public String getOnTransaction() {
+            return null;
         }
     }
 }

@@ -18,13 +18,17 @@ public class ExecuteDecisionInfo {
 
     protected String decisionKey;
     protected String decisionDefinitionId;
+    protected int decisionVersion;
     protected String deploymentId;
     protected String parentDeploymentId;
     protected String instanceId;
     protected String executionId;
     protected String activityId;
+    protected String scopeType;
     protected Map<String, Object> variables;
     protected String tenantId;
+    protected boolean fallbackToDefaultTenant;
+    protected boolean forceDMN11;
     
     public String getDecisionKey() {
         return decisionKey;
@@ -37,6 +41,12 @@ public class ExecuteDecisionInfo {
     }
     public void setDecisionDefinitionId(String decisionDefinitionId) {
         this.decisionDefinitionId = decisionDefinitionId;
+    }
+    public int getDecisionVersion() {
+        return decisionVersion;
+    }
+    public void setDecisionVersion(int decisionVersion) {
+        this.decisionVersion = decisionVersion;
     }
     public String getDeploymentId() {
         return deploymentId;
@@ -68,6 +78,12 @@ public class ExecuteDecisionInfo {
     public void setActivityId(String activityId) {
         this.activityId = activityId;
     }
+    public String getScopeType() {
+        return scopeType;
+    }
+    public void setScopeType(String scopeType) {
+        this.scopeType = scopeType;
+    }
     public Map<String, Object> getVariables() {
         return variables;
     }
@@ -79,5 +95,17 @@ public class ExecuteDecisionInfo {
     }
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
+    }
+    public boolean isFallbackToDefaultTenant() {
+        return fallbackToDefaultTenant;
+    }
+    public void setFallbackToDefaultTenant(boolean fallbackToDefaultTenant) {
+        this.fallbackToDefaultTenant = fallbackToDefaultTenant;
+    }
+    public boolean isForceDMN11() {
+        return forceDMN11;
+    }
+    public void setForceDMN11(boolean forceDMN11) {
+        this.forceDMN11 = forceDMN11;
     }
 }

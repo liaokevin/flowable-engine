@@ -13,9 +13,9 @@
 
 package org.flowable.engine.impl.cmd;
 
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.util.TaskHelper;
-import org.flowable.task.service.DelegationState;
+import org.flowable.task.api.DelegationState;
 import org.flowable.task.service.impl.persistence.entity.TaskEntity;
 
 /**
@@ -32,6 +32,7 @@ public class DelegateTaskCmd extends NeedsActiveTaskCmd<Object> {
         this.userId = userId;
     }
 
+    @Override
     protected Object execute(CommandContext commandContext, TaskEntity task) {
         task.setDelegationState(DelegationState.PENDING);
         if (task.getOwner() == null) {

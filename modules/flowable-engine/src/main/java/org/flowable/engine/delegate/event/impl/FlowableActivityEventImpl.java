@@ -12,8 +12,7 @@
  */
 package org.flowable.engine.delegate.event.impl;
 
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.impl.event.FlowableEventImpl;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
 import org.flowable.engine.delegate.event.FlowableActivityEvent;
 
 /**
@@ -22,7 +21,7 @@ import org.flowable.engine.delegate.event.FlowableActivityEvent;
  * @author Frederik Heremans
  * @author Joram Barrez
  */
-public class FlowableActivityEventImpl extends FlowableEventImpl implements FlowableActivityEvent {
+public class FlowableActivityEventImpl extends FlowableProcessEventImpl implements FlowableActivityEvent {
 
     protected String activityId;
     protected String activityName;
@@ -42,6 +41,7 @@ public class FlowableActivityEventImpl extends FlowableEventImpl implements Flow
         this.activityId = activityId;
     }
 
+    @Override
     public String getActivityName() {
         return activityName;
     }
@@ -59,6 +59,7 @@ public class FlowableActivityEventImpl extends FlowableEventImpl implements Flow
         this.activityType = activityType;
     }
 
+    @Override
     public String getBehaviorClass() {
         return behaviorClass;
     }

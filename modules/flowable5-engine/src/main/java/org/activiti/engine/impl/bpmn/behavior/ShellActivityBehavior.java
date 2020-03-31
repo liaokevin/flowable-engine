@@ -20,14 +20,15 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.activiti.engine.ActivitiException;
 import org.activiti.engine.impl.pvm.delegate.ActivityExecution;
+import org.flowable.common.engine.api.delegate.Expression;
 import org.flowable.engine.delegate.DelegateExecution;
-import org.flowable.variable.service.delegate.Expression;
 
 public class ShellActivityBehavior extends AbstractBpmnActivityBehavior {
 
@@ -79,6 +80,7 @@ public class ShellActivityBehavior extends AbstractBpmnActivityBehavior {
 
     }
 
+    @Override
     public void execute(DelegateExecution execution) {
         ActivityExecution activityExecution = (ActivityExecution) execution;
         readFields(activityExecution);
@@ -138,7 +140,7 @@ public class ShellActivityBehavior extends AbstractBpmnActivityBehavior {
 
             char[] buffer = new char[1024];
             try {
-                Reader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+                Reader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
                 int n;
                 while ((n = reader.read(buffer)) != -1) {
                     writer.write(buffer, 0, n);

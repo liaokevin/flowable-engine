@@ -14,10 +14,10 @@
 package org.flowable.engine.impl.bpmn.listener;
 
 import org.flowable.engine.delegate.TaskListener;
-import org.flowable.engine.impl.scripting.ScriptingEngines;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.task.service.delegate.DelegateTask;
-import org.flowable.variable.service.delegate.Expression;
+import org.flowable.common.engine.api.delegate.Expression;
+import org.flowable.common.engine.impl.scripting.ScriptingEngines;
 
 /**
  * @author Rich Kroll
@@ -35,6 +35,7 @@ public class ScriptTaskListener implements TaskListener {
 
     protected boolean autoStoreVariables;
 
+    @Override
     public void notify(DelegateTask delegateTask) {
         validateParameters();
 

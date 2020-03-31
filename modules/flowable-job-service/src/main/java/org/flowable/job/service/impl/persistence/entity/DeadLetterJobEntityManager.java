@@ -14,9 +14,8 @@ package org.flowable.job.service.impl.persistence.entity;
 
 import java.util.List;
 
-import org.flowable.engine.common.impl.Page;
-import org.flowable.engine.common.impl.persistence.entity.EntityManager;
-import org.flowable.job.service.Job;
+import org.flowable.common.engine.impl.persistence.entity.EntityManager;
+import org.flowable.job.api.Job;
 import org.flowable.job.service.impl.DeadLetterJobQueryImpl;
 import org.flowable.job.service.impl.JobQueryImpl;
 
@@ -26,9 +25,14 @@ import org.flowable.job.service.impl.JobQueryImpl;
 public interface DeadLetterJobEntityManager extends EntityManager<DeadLetterJobEntity> {
 
     /**
-     * Returns all {@link DeadLetterJobEntity} instances related to on {@link ExecutionEntity}.
+     * Returns all {@link DeadLetterJobEntity} instances related to an {@link ExecutionEntity}.
      */
     List<DeadLetterJobEntity> findJobsByExecutionId(String id);
+    
+    /**
+     * Returns all {@link DeadLetterJobEntity} instances related to a process instance
+     */
+    List<DeadLetterJobEntity> findJobsByProcessInstanceId(String id);
 
     /**
      * Executes a {@link JobQueryImpl} and returns the matching {@link DeadLetterJobEntity} instances.
@@ -36,7 +40,7 @@ public interface DeadLetterJobEntityManager extends EntityManager<DeadLetterJobE
     List<Job> findJobsByQueryCriteria(DeadLetterJobQueryImpl jobQuery);
 
     /**
-     * Same as {@link #findJobsByQueryCriteria(DeadLetterJobQueryImpl, Page)}, but only returns a count and not the instances itself.
+     * Same as {@link #findJobsByQueryCriteria(DeadLetterJobQueryImpl)}, but only returns a count and not the instances itself.
      */
     long findJobCountByQueryCriteria(DeadLetterJobQueryImpl jobQuery);
 
@@ -44,4 +48,5 @@ public interface DeadLetterJobEntityManager extends EntityManager<DeadLetterJobE
      * Changes the tenantId for all jobs related to a given {@link DeploymentEntity}.
      */
     void updateJobTenantIdForDeployment(String deploymentId, String newTenantId);
+    
 }

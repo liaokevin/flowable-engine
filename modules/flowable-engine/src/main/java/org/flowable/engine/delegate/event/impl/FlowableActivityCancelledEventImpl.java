@@ -12,7 +12,7 @@
  */
 package org.flowable.engine.delegate.event.impl;
 
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
 import org.flowable.engine.delegate.event.FlowableActivityCancelledEvent;
 
 /**
@@ -32,6 +32,7 @@ public class FlowableActivityCancelledEventImpl extends FlowableActivityEventImp
         this.cause = cause;
     }
 
+    @Override
     public Object getCause() {
         return cause;
     }

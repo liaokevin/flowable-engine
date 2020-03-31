@@ -125,7 +125,7 @@ public class Flowable5ProcessInstanceWrapper implements ProcessInstance {
     public String getLocalizedName() {
         return activiti5ProcessInstance.getLocalizedName();
     }
-
+    
     @Override
     public String getLocalizedDescription() {
         return activiti5ProcessInstance.getLocalizedDescription();
@@ -144,5 +144,29 @@ public class Flowable5ProcessInstanceWrapper implements ProcessInstance {
     public String getStartUserId() {
         return null;
     }
+    
+    @Override
+    public String getCallbackId() {
+        return null;
+    }
+    
+    @Override
+    public String getCallbackType() {
+        return null;
+    }
 
+    @Override
+    public String getReferenceId() {
+        return null;
+    }
+
+    @Override
+    public String getReferenceType() {
+        return null;
+    }
+
+    @Override
+    public String getPropagatedStageInstanceId() {
+        return null;
+    }
 }

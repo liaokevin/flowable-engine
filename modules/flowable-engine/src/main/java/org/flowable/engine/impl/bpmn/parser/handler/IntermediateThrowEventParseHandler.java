@@ -14,6 +14,7 @@ package org.flowable.engine.impl.bpmn.parser.handler;
 
 import org.flowable.bpmn.model.BaseElement;
 import org.flowable.bpmn.model.CompensateEventDefinition;
+import org.flowable.bpmn.model.EscalationEventDefinition;
 import org.flowable.bpmn.model.EventDefinition;
 import org.flowable.bpmn.model.SignalEventDefinition;
 import org.flowable.bpmn.model.ThrowEvent;
@@ -28,10 +29,12 @@ public class IntermediateThrowEventParseHandler extends AbstractActivityBpmnPars
 
     private static final Logger LOGGER = LoggerFactory.getLogger(IntermediateThrowEventParseHandler.class);
 
+    @Override
     public Class<? extends BaseElement> getHandledType() {
         return ThrowEvent.class;
     }
 
+    @Override
     protected void executeParse(BpmnParse bpmnParse, ThrowEvent intermediateEvent) {
 
         EventDefinition eventDefinition = null;
@@ -43,6 +46,11 @@ public class IntermediateThrowEventParseHandler extends AbstractActivityBpmnPars
             SignalEventDefinition signalEventDefinition = (SignalEventDefinition) eventDefinition;
             intermediateEvent.setBehavior(bpmnParse.getActivityBehaviorFactory().createIntermediateThrowSignalEventActivityBehavior(intermediateEvent, signalEventDefinition,
                     bpmnParse.getBpmnModel().getSignal(signalEventDefinition.getSignalRef())));
+            
+        } else if (eventDefinition instanceof EscalationEventDefinition) {
+            EscalationEventDefinition escalationEventDefinition = (EscalationEventDefinition) eventDefinition;
+            intermediateEvent.setBehavior(bpmnParse.getActivityBehaviorFactory().createIntermediateThrowEscalationEventActivityBehavior(intermediateEvent, escalationEventDefinition,
+                    bpmnParse.getBpmnModel().getEscalation(escalationEventDefinition.getEscalationCode())));
 
         } else if (eventDefinition instanceof CompensateEventDefinition) {
             CompensateEventDefinition compensateEventDefinition = (CompensateEventDefinition) eventDefinition;

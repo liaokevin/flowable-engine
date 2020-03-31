@@ -13,6 +13,7 @@
 package org.flowable.job.service.impl.persistence.entity;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 
 import org.flowable.job.service.impl.util.CommandContextUtil;
 
@@ -20,7 +21,7 @@ import org.flowable.job.service.impl.util.CommandContextUtil;
  * <p>
  * Encapsulates the logic for transparently working with {@link JobByteArrayEntity} .
  * </p>
- * 
+ *
  * @author Marcus Klimstra (CGI)
  */
 public class JobByteArrayRef implements Serializable {
@@ -53,9 +54,37 @@ public class JobByteArrayRef implements Serializable {
         return (entity != null ? entity.getBytes() : null);
     }
 
+    /**
+     * Returns the byte array from the {@link #getBytes()} method as {@link StandardCharsets#UTF_8} {@link String}.
+     *
+     * @return the byte array as {@link StandardCharsets#UTF_8} {@link String}
+     */
+    public String asString() {
+        byte[] bytes = getBytes();
+        if (bytes == null) {
+            return null;
+        }
+
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
     public void setValue(String name, byte[] bytes) {
         this.name = name;
         setBytes(bytes);
+    }
+
+    /**
+     * Set the specified {@link String} as the value of the byte array reference. It uses the
+     * {@link StandardCharsets#UTF_8} charset to convert the {@link String} to the byte array.
+     *
+     * @param name the name of the byte array reference
+     * @param value the value of the byte array reference
+     */
+    public void setValue(String name, String value) {
+        this.name = name;
+        if (value != null) {
+            setBytes(value.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     private void setBytes(byte[] bytes) {
@@ -97,14 +126,17 @@ public class JobByteArrayRef implements Serializable {
     private void ensureInitialized() {
         if (id != null && entity == null) {
             entity = CommandContextUtil.getJobByteArrayEntityManager().findById(id);
-            name = entity.getName();
+
+            if (entity != null) {
+                name = entity.getName();
+            }
         }
     }
 
     public boolean isDeleted() {
         return deleted;
     }
-    
+
     /**
      * This makes a copy of this {@link JobByteArrayRef}: a new
      * {@link JobByteArrayRef} instance will be created, however with the same id,

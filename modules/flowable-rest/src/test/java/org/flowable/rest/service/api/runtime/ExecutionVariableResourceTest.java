@@ -13,9 +13,15 @@
 
 package org.flowable.rest.service.api.runtime;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +39,7 @@ import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.HttpMultipartHelper;
 import org.flowable.rest.service.api.RestUrls;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -47,6 +54,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting an execution variable. GET
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ExecutionResourceTest.process-with-subprocess.bpmn20.xml" })
     public void testGetExecutionVariable() throws Exception {
 
@@ -97,6 +105,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting execution variable data.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ExecutionResourceTest.process-with-subprocess.bpmn20.xml" })
     public void testGetExecutionVariableData() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("processOne");
@@ -108,7 +117,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
 
         CloseableHttpResponse response = executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_EXECUTION_VARIABLE_DATA, childExecution.getId(), "var")),
                 HttpStatus.SC_OK);
-        String actualResponseBytesAsText = IOUtils.toString(response.getEntity().getContent());
+        String actualResponseBytesAsText = IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
         closeResponse(response);
         assertEquals("This is a binary piece of text in the child execution", actualResponseBytesAsText);
         assertEquals("application/octet-stream", response.getEntity().getContentType().getValue());
@@ -116,7 +125,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
         // Test global scope
         response = executeRequest(new HttpGet(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_EXECUTION_VARIABLE_DATA, childExecution.getId(), "var") + "?scope=global"),
                 HttpStatus.SC_OK);
-        actualResponseBytesAsText = IOUtils.toString(response.getEntity().getContent());
+        actualResponseBytesAsText = IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
         closeResponse(response);
         assertEquals("This is a binary piece of text", actualResponseBytesAsText);
         assertEquals("application/octet-stream", response.getEntity().getContentType().getValue());
@@ -125,6 +134,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting an execution variable data.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ExecutionResourceTest.process-with-subprocess.bpmn20.xml" })
     public void testGetExecutionVariableDataSerializable() throws Exception {
 
@@ -152,6 +162,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test getting an execution variable, for illegal vars.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ExecutionResourceTest.process-with-subprocess.bpmn20.xml" })
     public void testGetExecutionDataForIllegalVariables() throws Exception {
 
@@ -172,6 +183,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test deleting a single execution variable, including "not found" check.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ExecutionResourceTest.process-with-subprocess.bpmn20.xml" })
     public void testDeleteExecutionVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("processOne", Collections.singletonMap("myVariable", (Object) "processValue"));
@@ -206,6 +218,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test updating a single execution variable, including "not found" check.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ExecutionResourceTest.process-with-subprocess.bpmn20.xml" })
     public void testUpdateExecutionVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("processOne", Collections.singletonMap("overlappingVariable", (Object) "processValue"));
@@ -269,6 +282,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
     /**
      * Test updating a single execution variable using a binary stream.
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ExecutionResourceTest.process-with-subprocess.bpmn20.xml" })
     public void testUpdateBinaryExecutionVariable() throws Exception {
 
@@ -297,7 +311,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
         assertTrue(responseNode.get("value").isNull());
         assertEquals("local", responseNode.get("scope").asText());
         assertEquals("binary", responseNode.get("type").asText());
-        assertNotNull(responseNode.get("valueUrl").isNull());
+        assertNotNull(responseNode.get("valueUrl"));
         assertTrue(responseNode.get("valueUrl").asText().endsWith(RestUrls.createRelativeResourceUrl(RestUrls.URL_EXECUTION_VARIABLE_DATA, childExecution.getId(), "binaryVariable")));
 
         // Check actual value of variable in engine
@@ -320,7 +334,7 @@ public class ExecutionVariableResourceTest extends BaseSpringRestTestCase {
         assertTrue(responseNode.get("value").isNull());
         assertEquals("global", responseNode.get("scope").asText());
         assertEquals("binary", responseNode.get("type").asText());
-        assertNotNull(responseNode.get("valueUrl").isNull());
+        assertNotNull(responseNode.get("valueUrl"));
         assertTrue(responseNode.get("valueUrl").asText().endsWith(RestUrls.createRelativeResourceUrl(RestUrls.URL_EXECUTION_VARIABLE_DATA, childExecution.getId(), "binaryVariable")));
 
         // Check actual global value of variable in engine

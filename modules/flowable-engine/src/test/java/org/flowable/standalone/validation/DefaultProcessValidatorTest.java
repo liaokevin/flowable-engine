@@ -12,10 +12,14 @@
  */
 package org.flowable.standalone.validation;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,6 +29,7 @@ import javax.xml.stream.XMLStreamReader;
 
 import org.flowable.bpmn.converter.BpmnXMLConverter;
 import org.flowable.bpmn.model.BpmnModel;
+import org.flowable.common.engine.api.io.InputStreamProvider;
 import org.flowable.engine.test.util.TestProcessUtil;
 import org.flowable.validation.ProcessValidator;
 import org.flowable.validation.ProcessValidatorFactory;
@@ -32,8 +37,8 @@ import org.flowable.validation.ValidationError;
 import org.flowable.validation.validator.Problems;
 import org.flowable.validation.validator.ValidatorSetNames;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author jbarrez
@@ -42,7 +47,7 @@ public class DefaultProcessValidatorTest {
 
     protected ProcessValidator processValidator;
 
-    @Before
+    @BeforeEach
     public void setupProcessValidator() {
         ProcessValidatorFactory processValidatorFactory = new ProcessValidatorFactory();
         this.processValidator = processValidatorFactory.createDefaultProcessValidator();
@@ -53,13 +58,13 @@ public class DefaultProcessValidatorTest {
 
         InputStream xmlStream = this.getClass().getClassLoader().getResourceAsStream("org/flowable/engine/test/validation/invalidProcess.bpmn20.xml");
         XMLInputFactory xif = XMLInputFactory.newInstance();
-        InputStreamReader in = new InputStreamReader(xmlStream, "UTF-8");
+        InputStreamReader in = new InputStreamReader(xmlStream, StandardCharsets.UTF_8);
         XMLStreamReader xtr = xif.createXMLStreamReader(in);
         BpmnModel bpmnModel = new BpmnXMLConverter().convertToBpmnModel(xtr);
         Assert.assertNotNull(bpmnModel);
 
         List<ValidationError> allErrors = processValidator.validate(bpmnModel);
-        Assert.assertEquals(69, allErrors.size());
+        Assert.assertEquals(71, allErrors.size());
 
         String setName = ValidatorSetNames.FLOWABLE_EXECUTABLE_PROCESS; // shortening it a bit
 
@@ -124,6 +129,8 @@ public class DefaultProcessValidatorTest {
         assertCommonProblemFieldForActivity(problems.get(0));
         problems = findErrors(allErrors, setName, Problems.SERVICE_TASK_WEBSERVICE_INVALID_OPERATION_REF, 1);
         assertCommonProblemFieldForActivity(problems.get(0));
+        problems = findErrors(allErrors, setName, Problems.SERVICE_TASK_USE_LOCAL_SCOPE_FOR_RESULT_VAR_WITHOUT_RESULT_VARIABLE_NAME, 1);
+        assertCommonProblemFieldForActivity(problems.get(0));
 
         // Send task
         problems = findErrors(allErrors, setName, Problems.SEND_TASK_INVALID_IMPLEMENTATION, 1);
@@ -180,6 +187,8 @@ public class DefaultProcessValidatorTest {
 
         // Event subprocesses
         problems = findErrors(allErrors, setName, Problems.EVENT_SUBPROCESS_INVALID_START_EVENT_DEFINITION, 1);
+        assertCommonProblemFieldForActivity(problems.get(0));
+        problems = findErrors(allErrors, setName, Problems.EVENT_SUBPROCESS_BOUNDARY_EVENT, 1);
         assertCommonProblemFieldForActivity(problems.get(0));
 
         // Boundary events
@@ -263,7 +272,7 @@ public class DefaultProcessValidatorTest {
                 "    <userTask id='theTask1' name='Input is one' /> " + "    <userTask id='theTask2' name='Default input' /> " + "  </process>" + "</definitions>";
 
         XMLInputFactory xif = XMLInputFactory.newInstance();
-        InputStreamReader in = new InputStreamReader(new ByteArrayInputStream(flowWithoutConditionNoDefaultFlow.getBytes()), "UTF-8");
+        InputStreamReader in = new InputStreamReader(new ByteArrayInputStream(flowWithoutConditionNoDefaultFlow.getBytes()), StandardCharsets.UTF_8);
         XMLStreamReader xtr = xif.createXMLStreamReader(in);
         BpmnModel bpmnModel = new BpmnXMLConverter().convertToBpmnModel(xtr);
         Assert.assertNotNull(bpmnModel);
@@ -322,6 +331,19 @@ public class DefaultProcessValidatorTest {
         }
     }
 
+    @Test
+    void testEventSubProcessWithBoundary() {
+        BpmnModel bpmnModel = readBpmnModelFromXml("org/flowable/standalone/validation/eventSubProcessWithBoundary.bpmn20.xml");
+
+        List<ValidationError> errors = processValidator.validate(bpmnModel);
+
+        assertThat(errors)
+                .extracting(ValidationError::getProblem, ValidationError::getDefaultDescription, ValidationError::getActivityId, ValidationError::isWarning)
+                .containsExactlyInAnyOrder(
+                        tuple(Problems.EVENT_SUBPROCESS_BOUNDARY_EVENT, "event sub process cannot have attached boundary events", "errorEndEventSubProcess", true)
+                );
+    }
+
     protected void assertCommonProblemFieldForActivity(ValidationError error) {
         assertProcessElementError(error);
 
@@ -364,6 +386,11 @@ public class DefaultProcessValidatorTest {
             }
         }
         return results;
+    }
+
+    protected BpmnModel readBpmnModelFromXml(String resource) {
+        InputStreamProvider xmlStream = () -> DefaultProcessValidatorTest.class.getClassLoader().getResourceAsStream(resource);
+        return new BpmnXMLConverter().convertToBpmnModel(xmlStream, true, true);
     }
 
 }

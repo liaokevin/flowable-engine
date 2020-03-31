@@ -17,16 +17,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.flowable.engine.common.impl.persistence.entity.AbstractEntity;
-import org.flowable.variable.service.impl.types.ValueFields;
-import org.flowable.variable.service.impl.types.VariableType;
+import org.flowable.variable.api.types.ValueFields;
+import org.flowable.variable.api.types.VariableType;
 
 /**
  * @author Tom Baeyens
  * @author Marcus Klimstra (CGI)
  * @author Joram Barrez
  */
-public class VariableInstanceEntityImpl extends AbstractEntity implements VariableInstanceEntity, ValueFields, Serializable {
+public class VariableInstanceEntityImpl extends AbstractVariableServiceEntity implements VariableInstanceEntity, ValueFields, Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -38,6 +37,9 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
     protected String processInstanceId;
     protected String processDefinitionId;
     protected String taskId;
+    protected String scopeId;
+    protected String subScopeId;
+    protected String scopeType;
 
     protected Long longValue;
     protected Double doubleValue;
@@ -53,6 +55,7 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
 
     }
 
+    @Override
     public Object getPersistentState() {
         Map<String, Object> persistentState = new HashMap<>();
         persistentState.put("name", name);
@@ -60,6 +63,9 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
             persistentState.put("typeName", type.getTypeName());
         }
         persistentState.put("executionId", executionId);
+        persistentState.put("scopeId", scopeId);
+        persistentState.put("subScopeId", subScopeId);
+        persistentState.put("scopeType", scopeType);
         persistentState.put("longValue", longValue);
         persistentState.put("doubleValue", doubleValue);
         persistentState.put("textValue", textValue);
@@ -73,18 +79,22 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
         return persistentState;
     }
 
+    @Override
     public void forceUpdate() {
         forcedUpdate = true;
     }
     
+    @Override
     public void setExecutionId(String executionId) {
         this.executionId = executionId;
     }
 
+    @Override
     public void setProcessInstanceId(String processInstanceId) {
         this.processInstanceId = processInstanceId;
     }
     
+    @Override
     public void setProcessDefinitionId(String processDefinitionId) {
         this.processDefinitionId = processDefinitionId;
     }
@@ -103,6 +113,7 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
         byteArrayRef.setValue("var-" + name, bytes);
     }
 
+    @Override
     public VariableByteArrayRef getByteArrayRef() {
         return byteArrayRef;
     }
@@ -115,6 +126,7 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
 
     // value //////////////////////////////////////////////////////////////////////
 
+    @Override
     public Object getValue() {
         if (!type.isCachable() || cachedValue == null) {
             cachedValue = type.getValue(this);
@@ -122,6 +134,7 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
         return cachedValue;
     }
 
+    @Override
     public void setValue(Object value) {
         type.setValue(value, this);
         typeName = type.getTypeName();
@@ -130,14 +143,17 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
 
     // getters and setters ////////////////////////////////////////////////////////
 
+    @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public String getTypeName() {
         if (typeName != null) {
             return typeName;
@@ -148,74 +164,122 @@ public class VariableInstanceEntityImpl extends AbstractEntity implements Variab
         }
     }
 
+    @Override
     public void setTypeName(String typeName) {
         this.typeName = typeName;
     }
 
+    @Override
     public VariableType getType() {
         return type;
     }
 
+    @Override
     public void setType(VariableType type) {
         this.type = type;
     }
 
+    @Override
     public String getProcessInstanceId() {
         return processInstanceId;
     }
     
+    @Override
     public String getProcessDefinitionId() {
         return processDefinitionId;
     }
 
+    @Override
     public String getTaskId() {
         return taskId;
     }
 
+    @Override
     public void setTaskId(String taskId) {
         this.taskId = taskId;
     }
 
+    @Override
     public String getExecutionId() {
         return executionId;
     }
+    
+    @Override
+    public String getScopeId() {
+        return scopeId;
+    }
 
+    @Override
+    public void setScopeId(String scopeId) {
+        this.scopeId = scopeId;
+    }
+    
+    @Override
+    public String getSubScopeId() {
+        return subScopeId;
+    }
+    
+    @Override
+    public void setSubScopeId(String subScopeId) {
+        this.subScopeId = subScopeId;
+    }
+
+    @Override
+    public String getScopeType() {
+        return scopeType;
+    }
+
+    @Override
+    public void setScopeType(String scopeType) {
+        this.scopeType = scopeType;
+    }
+
+    @Override
     public Long getLongValue() {
         return longValue;
     }
 
+    @Override
     public void setLongValue(Long longValue) {
         this.longValue = longValue;
     }
 
+    @Override
     public Double getDoubleValue() {
         return doubleValue;
     }
 
+    @Override
     public void setDoubleValue(Double doubleValue) {
         this.doubleValue = doubleValue;
     }
 
+    @Override
     public String getTextValue() {
         return textValue;
     }
 
+    @Override
     public void setTextValue(String textValue) {
         this.textValue = textValue;
     }
 
+    @Override
     public String getTextValue2() {
         return textValue2;
     }
 
+    @Override
     public void setTextValue2(String textValue2) {
         this.textValue2 = textValue2;
     }
 
+    @Override
     public Object getCachedValue() {
         return cachedValue;
     }
 
+    @Override
     public void setCachedValue(Object cachedValue) {
         this.cachedValue = cachedValue;
     }

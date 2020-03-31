@@ -28,25 +28,32 @@ public class SimpleStructureDefinition implements FieldBaseStructureDefinition {
 
     protected List<Class<?>> fieldTypes;
 
+    protected List<Class<?>> fieldParameterTypes;
+
     public SimpleStructureDefinition(String id) {
         this.id = id;
         this.fieldNames = new ArrayList<>();
         this.fieldTypes = new ArrayList<>();
+        this.fieldParameterTypes = new ArrayList<>();
     }
 
+    @Override
     public int getFieldSize() {
         return this.fieldNames.size();
     }
 
+    @Override
     public String getId() {
         return this.id;
     }
 
-    public void setFieldName(int index, String fieldName, Class<?> type) {
+    public void setFieldName(int index, String fieldName, Class<?> type, Class<?> parameterType) {
         this.growListToContain(index, this.fieldNames);
         this.growListToContain(index, this.fieldTypes);
+        this.growListToContain(index, this.fieldParameterTypes);
         this.fieldNames.set(index, fieldName);
         this.fieldTypes.set(index, type);
+        this.fieldParameterTypes.set(index, parameterType);
     }
 
     private void growListToContain(int index, List<?> list) {
@@ -57,14 +64,22 @@ public class SimpleStructureDefinition implements FieldBaseStructureDefinition {
         }
     }
 
+    @Override
     public String getFieldNameAt(int index) {
         return this.fieldNames.get(index);
     }
 
+    @Override
     public Class<?> getFieldTypeAt(int index) {
         return this.fieldTypes.get(index);
     }
 
+    @Override
+    public Class<?> getFieldParameterTypeAt(int index) {
+        return this.fieldParameterTypes.get(index);
+    }
+
+    @Override
     public StructureInstance createInstance() {
         return new FieldBaseStructureInstance(this);
     }

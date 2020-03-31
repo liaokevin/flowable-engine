@@ -18,7 +18,7 @@ import java.util.Map;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
 import org.activiti.engine.test.bpmn.event.compensate.helper.SetVariablesDelegate;
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.history.HistoricActivityInstanceQuery;
 import org.flowable.engine.repository.DeploymentProperties;
@@ -76,7 +76,7 @@ public class CompensateEventTest extends PluggableFlowableTestCase {
         assertNotNull(processInstance);
 
         // get task from first subprocess
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
 
         Map<String, String> taskFormVariables = new HashMap<>();
         taskFormVariables.put("test", "begin");

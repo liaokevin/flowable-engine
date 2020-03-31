@@ -34,7 +34,7 @@ import org.activiti.engine.impl.persistence.entity.SuspensionState.SuspensionSta
 import org.activiti.engine.impl.persistence.entity.TimerJobEntity;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.flowable.engine.repository.ProcessDefinition;
-import org.flowable.job.service.Job;
+import org.flowable.job.api.Job;
 
 /**
  * @author Daniel Meyer
@@ -66,6 +66,7 @@ public abstract class AbstractSetProcessDefinitionStateCmd implements Command<Vo
         this.tenantId = tenantId;
     }
 
+    @Override
     public Void execute(CommandContext commandContext) {
 
         List<ProcessDefinitionEntity> processDefinitions = findProcessDefinition(commandContext);

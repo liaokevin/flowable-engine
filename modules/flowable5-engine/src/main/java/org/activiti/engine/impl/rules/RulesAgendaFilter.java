@@ -16,8 +16,8 @@ package org.activiti.engine.impl.rules;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.drools.runtime.rule.Activation;
-import org.drools.runtime.rule.AgendaFilter;
+import org.kie.api.runtime.rule.AgendaFilter;
+import org.kie.api.runtime.rule.Match;
 
 /**
  * @author Tijs Rademakers
@@ -29,9 +29,10 @@ public class RulesAgendaFilter implements AgendaFilter {
 
     public RulesAgendaFilter() {
     }
-
-    public boolean accept(Activation activation) {
-        String ruleName = activation.getRule().getName();
+    
+    @Override
+    public boolean accept(Match match) {
+        String ruleName = match.getRule().getName();
         for (String suffix : suffixList) {
             if (ruleName.endsWith(suffix)) {
                 return this.accept;

@@ -16,10 +16,10 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 
+import org.flowable.common.engine.api.FlowableException;
 import org.flowable.crystalball.simulator.impl.NoopEventHandler;
-import org.flowable.engine.common.api.FlowableException;
 import org.flowable.engine.impl.ProcessEngineImpl;
-import org.flowable.variable.service.delegate.VariableScope;
+import org.flowable.variable.api.delegate.VariableScope;
 
 /**
  * @author martin.grofcik

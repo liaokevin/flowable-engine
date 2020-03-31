@@ -16,12 +16,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import org.flowable.engine.common.impl.db.HasRevision;
-import org.flowable.engine.common.impl.persistence.entity.Entity;
+import org.flowable.common.engine.impl.db.HasRevision;
+import org.flowable.common.engine.impl.persistence.entity.Entity;
 import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEntity;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
 import org.flowable.task.service.delegate.DelegateTask;
-import org.flowable.variable.service.delegate.VariableScope;
+import org.flowable.variable.api.delegate.VariableScope;
 import org.flowable.variable.service.impl.persistence.entity.VariableInstanceEntity;
 
 /**
@@ -32,19 +32,30 @@ public interface TaskEntity extends VariableScope, Task, DelegateTask, Entity, H
 
     void setExecutionId(String executionId);
 
+    @Override
     List<IdentityLinkEntity> getIdentityLinks();
 
     void setCreateTime(Date createTime);
 
+    void setTaskDefinitionId(String taskDefinitionId);
+    
     void setProcessDefinitionId(String processDefinitionId);
 
     void setEventName(String eventName);
-
-    //void setCurrentFlowableListener(FlowableListener currentListener);
-
-    //ExecutionEntity getProcessInstance();
+    
+    void setEventHandlerId(String eventHandlerId);
 
     void setProcessInstanceId(String processInstanceId);
+    
+    void setScopeId(String scopeId);
+    
+    void setSubScopeId(String subScopeId);
+    
+    void setScopeType(String scopeType);
+    
+    void setScopeDefinitionId(String scopeDefinitionId);
+
+    void setPropagatedStageInstanceId(String propagatedStageInstanceId);
 
     int getSuspensionState();
 
@@ -56,15 +67,15 @@ public interface TaskEntity extends VariableScope, Task, DelegateTask, Entity, H
 
     void forceUpdate();
 
-    boolean isDeleted();
-
-    void setDeleted(boolean isDeleted);
-
     boolean isCanceled();
 
     void setCanceled(boolean isCanceled);
 
-    Date getClaimTime();
-
     void setClaimTime(Date claimTime);
+    
+    void setAssigneeValue(String assignee);
+    
+    void setOwnerValue(String owner);
+
+    List<VariableInstanceEntity> getQueryVariables();
 }

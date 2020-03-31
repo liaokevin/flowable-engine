@@ -1,11 +1,24 @@
 language: java
 
-dist: trusty
-sudo: required
-
-jdk:
-  - oraclejdk8
-  - openjdk7
+matrix:
+  include:
+  - jdk: openjdk8
+  - name: "Flowable 5 tests"
+    jdk: openjdk8
+    install: true
+    script:
+      cd scripts && ./run-flowable5-tests.sh
+  - jdk: openjdk11
+    dist: xenial
+  - jdk: openjdk13
+  - jdk: openjdk-ea
+    branches:
+      only:
+      - master
+    if: TRAVIS_PULL_REQUEST != false
+  allow_failures:
+  - jdk: openjdk-ea
+  - name: "Flowable 5 tests"
 
 cache:
   directories:
@@ -17,10 +30,7 @@ notifications:
     on_start: never     # options: [always|never|change] default: always
 
 before_script:
-  - echo MAVEN_OPTS=\"-Xmx2048m -Xms1024m -XX:MaxPermSize=512m -Djava.awt.headless=true\" > ~/.mavenrc
+  - echo MAVEN_OPTS=\"-Xmx2048m -Xms1024m -Djava.awt.headless=true\" > ~/.mavenrc
 
 script:
-  mvn test -PerrorLogging
-
-after_failure:
-  - cat /home/travis/build/flowable/flowable-engine/modules/*/target/surefire-reports/*.txt
+  mvn test -Pdistro,errorLogging -DskipTests=false -B

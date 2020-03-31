@@ -14,8 +14,8 @@ package org.flowable.job.service.impl.persistence.entity;
 
 import java.util.Date;
 
-import org.flowable.engine.common.impl.db.HasRevision;
-import org.flowable.engine.common.impl.persistence.entity.Entity;
+import org.flowable.common.engine.impl.db.HasRevision;
+import org.flowable.common.engine.impl.persistence.entity.Entity;
 
 /**
  * @author Tijs Rademakers
@@ -29,6 +29,12 @@ public interface AbstractJobEntity extends Entity, HasRevision {
 
     void setJobHandlerConfiguration(String jobHandlerConfiguration);
 
+    String getCustomValues();
+
+    void setCustomValues(String customValues);
+
+    JobByteArrayRef getCustomValuesByteArrayRef();
+
     String getExceptionStacktrace();
 
     void setExceptionStacktrace(String exception);
@@ -36,9 +42,9 @@ public interface AbstractJobEntity extends Entity, HasRevision {
     void setExceptionMessage(String exceptionMessage);
 
     JobByteArrayRef getExceptionByteArrayRef();
-    
+
     void setTenantId(String tenantId);
-    
+
     Date getCreateTime();
 
 }

@@ -12,7 +12,7 @@
  */
 package org.flowable.job.service.impl.asyncexecutor.multitenant;
 
-import org.flowable.engine.common.impl.cfg.multitenant.TenantInfoHolder;
+import org.flowable.common.engine.impl.cfg.multitenant.TenantInfoHolder;
 import org.flowable.job.service.impl.asyncexecutor.AcquireAsyncJobsDueRunnable;
 import org.flowable.job.service.impl.asyncexecutor.AsyncExecutor;
 
@@ -27,7 +27,8 @@ public class TenantAwareAcquireAsyncJobsDueRunnable extends AcquireAsyncJobsDueR
     protected String tenantId;
 
     public TenantAwareAcquireAsyncJobsDueRunnable(AsyncExecutor asyncExecutor, TenantInfoHolder tenantInfoHolder, String tenantId) {
-        super("flowable-tenant-" + tenantId + "-acquire-jobs", asyncExecutor, asyncExecutor.getJobServiceConfiguration().getJobEntityManager());
+        super("flowable-tenant-" + tenantId + "-" + asyncExecutor.getJobServiceConfiguration().getEngineName() + "-acquire-jobs",
+                asyncExecutor, asyncExecutor.getJobServiceConfiguration().getJobEntityManager());
         this.tenantInfoHolder = tenantInfoHolder;
         this.tenantId = tenantId;
     }

@@ -13,15 +13,12 @@
 package org.flowable.job.service.impl.persistence.entity;
 
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.persistence.entity.AbstractEntity;
-import org.flowable.job.service.JobInfo;
+import org.flowable.job.api.JobInfo;
 import org.flowable.job.service.JobServiceConfiguration;
 
 /**
@@ -30,7 +27,7 @@ import org.flowable.job.service.JobServiceConfiguration;
  * @author Joram Barrez
  * @author Tijs Rademakers
  */
-public class HistoryJobEntityImpl extends AbstractEntity implements HistoryJobEntity, Serializable {
+public class HistoryJobEntityImpl extends AbstractJobServiceEntity implements HistoryJobEntity, Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -38,95 +35,121 @@ public class HistoryJobEntityImpl extends AbstractEntity implements HistoryJobEn
 
     protected String jobHandlerType;
     protected String jobHandlerConfiguration;
+    protected JobByteArrayRef customValuesByteArrayRef;
     protected JobByteArrayRef advancedJobHandlerConfigurationByteArrayRef;
 
     protected JobByteArrayRef exceptionByteArrayRef;
     protected String exceptionMessage;
 
-    protected String tenantId = JobServiceConfiguration.NO_TENANT_ID;
-
     protected String lockOwner;
     protected Date lockExpirationTime;
     protected Date createTime;
+    protected String scopeType;
+    
+    protected String tenantId = JobServiceConfiguration.NO_TENANT_ID;
 
+    @Override
     public Object getPersistentState() {
         Map<String, Object> persistentState = new HashMap<>();
         persistentState.put("retries", retries);
         persistentState.put("exceptionMessage", exceptionMessage);
         persistentState.put("jobHandlerType", jobHandlerType);
 
-        if (exceptionByteArrayRef != null) {
-            persistentState.put("exceptionByteArrayId", exceptionByteArrayRef.getId());
-        }
+        putByteArrayRefIdToMap("exceptionByteArrayId", exceptionByteArrayRef, persistentState);
+        putByteArrayRefIdToMap("customValuesByteArrayRef", customValuesByteArrayRef, persistentState);
+        putByteArrayRefIdToMap("advancedJobHandlerConfigurationByteArrayRef", advancedJobHandlerConfigurationByteArrayRef, persistentState);
 
-        if (advancedJobHandlerConfigurationByteArrayRef != null) {
-            persistentState.put("advancedJobHandlerConfigurationByteArrayRef",
-                    advancedJobHandlerConfigurationByteArrayRef.getId());
-        }
         persistentState.put("lockOwner", lockOwner);
         persistentState.put("lockExpirationTime", lockExpirationTime);
+        
+        persistentState.put("scopeType", scopeType);
 
         return persistentState;
+    }
+
+    private void putByteArrayRefIdToMap(String key, JobByteArrayRef jobByteArrayRef, Map<String, Object> map) {
+        if(jobByteArrayRef != null) {
+            map.put(key, jobByteArrayRef.getId());
+        }
     }
 
     // getters and setters
     // ////////////////////////////////////////////////////////
 
+    @Override
     public int getRetries() {
         return retries;
     }
 
+    @Override
     public void setRetries(int retries) {
         this.retries = retries;
     }
 
+    @Override
     public String getJobHandlerType() {
         return jobHandlerType;
     }
 
+    @Override
     public void setJobHandlerType(String jobHandlerType) {
         this.jobHandlerType = jobHandlerType;
     }
 
+    @Override
     public String getJobHandlerConfiguration() {
         return jobHandlerConfiguration;
     }
 
+    @Override
     public void setJobHandlerConfiguration(String jobHandlerConfiguration) {
         this.jobHandlerConfiguration = jobHandlerConfiguration;
     }
 
+    @Override
+    public String getCustomValues() {
+        return getJobByteArrayRefAsString(customValuesByteArrayRef);
+    }
+
+    @Override
+    public void setCustomValues(String customValues) {
+        if (customValuesByteArrayRef == null) {
+            customValuesByteArrayRef = new JobByteArrayRef();
+        }
+        customValuesByteArrayRef.setValue("jobCustomValues", customValues);
+    }
+
+    @Override
+    public JobByteArrayRef getCustomValuesByteArrayRef() {
+        return customValuesByteArrayRef;
+    }
+
+    @Override
+    public void setCustomValuesByteArrayRef(JobByteArrayRef customValuesByteArrayRef) {
+        this.customValuesByteArrayRef = customValuesByteArrayRef;
+    }
+
+    @Override
     public JobByteArrayRef getAdvancedJobHandlerConfigurationByteArrayRef() {
         return advancedJobHandlerConfigurationByteArrayRef;
     }
 
+    @Override
     public String getAdvancedJobHandlerConfiguration() {
-        if (advancedJobHandlerConfigurationByteArrayRef == null) {
-            return null;
-        }
-
-        byte[] bytes = advancedJobHandlerConfigurationByteArrayRef.getBytes();
-        if (bytes == null) {
-            return null;
-        }
-
-        try {
-            return new String(bytes, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new FlowableException("UTF-8 is not a supported encoding");
-        }
+        return getJobByteArrayRefAsString(advancedJobHandlerConfigurationByteArrayRef);
     }
-    
+
     @Override
     public void setAdvancedJobHandlerConfigurationByteArrayRef(JobByteArrayRef configurationByteArrayRef) {
          this.advancedJobHandlerConfigurationByteArrayRef = configurationByteArrayRef;
     }
 
+    @Override
     public void setAdvancedJobHandlerConfiguration(String jobHandlerConfiguration) {
         if (advancedJobHandlerConfigurationByteArrayRef == null) {
             advancedJobHandlerConfigurationByteArrayRef = new JobByteArrayRef();
         }
-        advancedJobHandlerConfigurationByteArrayRef.setValue("cfg", getUtf8Bytes(jobHandlerConfiguration));
+        advancedJobHandlerConfigurationByteArrayRef.setValue("cfg", jobHandlerConfiguration);
     }
 
     @Override
@@ -136,89 +159,95 @@ public class HistoryJobEntityImpl extends AbstractEntity implements HistoryJobEn
         }
         advancedJobHandlerConfigurationByteArrayRef.setValue("cfg", bytes);
     }
-    
+
     @Override
     public void setExceptionByteArrayRef(JobByteArrayRef exceptionByteArrayRef) {
         this.exceptionByteArrayRef = exceptionByteArrayRef;
     }
 
+    @Override
     public JobByteArrayRef getExceptionByteArrayRef() {
         return exceptionByteArrayRef;
     }
 
+    @Override
     public String getExceptionStacktrace() {
-        if (exceptionByteArrayRef == null) {
-            return null;
-        }
-
-        byte[] bytes = exceptionByteArrayRef.getBytes();
-        if (bytes == null) {
-            return null;
-        }
-
-        try {
-            return new String(bytes, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new FlowableException("UTF-8 is not a supported encoding");
-        }
+        return getJobByteArrayRefAsString(exceptionByteArrayRef);
     }
 
+    @Override
     public void setExceptionStacktrace(String exception) {
         if (exceptionByteArrayRef == null) {
             exceptionByteArrayRef = new JobByteArrayRef();
         }
-        exceptionByteArrayRef.setValue("stacktrace", getUtf8Bytes(exception));
+        exceptionByteArrayRef.setValue("stacktrace", exception);
     }
 
+    @Override
     public String getExceptionMessage() {
         return exceptionMessage;
     }
 
+    @Override
     public void setExceptionMessage(String exceptionMessage) {
         this.exceptionMessage = StringUtils.abbreviate(exceptionMessage, JobInfo.MAX_EXCEPTION_MESSAGE_LENGTH);
     }
 
+    @Override
     public String getTenantId() {
         return tenantId;
     }
 
+    @Override
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
 
+    @Override
     public Date getCreateTime() {
         return createTime;
     }
 
+    @Override
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
     }
 
+    @Override
     public String getLockOwner() {
         return lockOwner;
     }
 
+    @Override
     public void setLockOwner(String claimedBy) {
         this.lockOwner = claimedBy;
     }
 
+    @Override
     public Date getLockExpirationTime() {
         return lockExpirationTime;
     }
 
+    @Override
     public void setLockExpirationTime(Date claimedUntil) {
         this.lockExpirationTime = claimedUntil;
     }
 
-    protected byte[] getUtf8Bytes(String str) {
-        if (str == null) {
+    @Override
+    public String getScopeType() {
+        return scopeType;
+    }
+
+    @Override
+    public void setScopeType(String scopeType) {
+        this.scopeType = scopeType;
+    }
+
+    private String getJobByteArrayRefAsString(JobByteArrayRef jobByteArrayRef) {
+        if (jobByteArrayRef == null) {
             return null;
         }
-        try {
-            return str.getBytes("UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new FlowableException("UTF-8 is not a supported encoding");
-        }
+        return jobByteArrayRef.asString();
     }
 
     @Override

@@ -1,9 +1,9 @@
 /* Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,23 +16,21 @@ package org.flowable.engine.test.api.identity;
 import java.util.Arrays;
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.api.FlowableOptimisticLockingException;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableOptimisticLockingException;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.idm.api.Group;
 import org.flowable.idm.api.Picture;
 import org.flowable.idm.api.User;
-import org.flowable.idm.engine.IdmEngineConfiguration;
-import org.flowable.idm.engine.IdmEngines;
-import org.flowable.idm.engine.impl.authentication.ApacheDigester;
-import org.flowable.idm.engine.impl.authentication.ClearTextPasswordEncoder;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Frederik Heremans
  */
 public class IdentityServiceTest extends PluggableFlowableTestCase {
 
+    @Test
     public void testUserInfo() {
         User user = identityService.newUser("testuser");
         identityService.saveUser(user);
@@ -49,6 +47,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testCreateExistingUser() {
         User user = identityService.newUser("testuser");
         identityService.saveUser(user);
@@ -64,7 +63,35 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testUpdateUser() {
+        // First, create a new user
+        User user = identityService.newUser("johndoe");
+        user.setFirstName("John");
+        user.setLastName("Doe");
+        user.setEmail("johndoe@alfresco.com");
+        user.setTenantId("originalTenantId");
+        identityService.saveUser(user);
+
+        // Fetch and update the user
+        user = identityService.createUserQuery().userId("johndoe").singleResult();
+        user.setEmail("updated@alfresco.com");
+        user.setFirstName("Jane");
+        user.setLastName("Donnel");
+        user.setTenantId("flowable");
+        identityService.saveUser(user);
+
+        user = identityService.createUserQuery().userId("johndoe").singleResult();
+        assertEquals("Jane", user.getFirstName());
+        assertEquals("Donnel", user.getLastName());
+        assertEquals("updated@alfresco.com", user.getEmail());
+        assertEquals("flowable", user.getTenantId());
+
+        identityService.deleteUser(user.getId());
+    }
+
+    @Test
+    public void testCreateUserWithoutTenantId() {
         // First, create a new user
         User user = identityService.newUser("johndoe");
         user.setFirstName("John");
@@ -74,19 +101,15 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
 
         // Fetch and update the user
         user = identityService.createUserQuery().userId("johndoe").singleResult();
-        user.setEmail("updated@alfresco.com");
-        user.setFirstName("Jane");
-        user.setLastName("Donnel");
-        identityService.saveUser(user);
-
-        user = identityService.createUserQuery().userId("johndoe").singleResult();
-        assertEquals("Jane", user.getFirstName());
-        assertEquals("Donnel", user.getLastName());
-        assertEquals("updated@alfresco.com", user.getEmail());
+        assertEquals("John", user.getFirstName());
+        assertEquals("Doe", user.getLastName());
+        assertEquals("johndoe@alfresco.com", user.getEmail());
+        assertEquals(null, user.getTenantId());
 
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testUserPicture() {
         // First, create a new user
         User user = identityService.newUser("johndoe");
@@ -112,6 +135,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testUpdateGroup() {
         Group group = identityService.newGroup("sales");
         group.setName("Sales");
@@ -127,16 +151,19 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteGroup(group.getId());
     }
 
-    public void findUserByUnexistingId() {
+    @Test
+    public void testFindUserByUnexistingId() {
         User user = identityService.createUserQuery().userId("unexistinguser").singleResult();
         assertNull(user);
     }
 
-    public void findGroupByUnexistingId() {
+    @Test
+    public void testFindGroupByUnexistingId() {
         Group group = identityService.createGroupQuery().groupId("unexistinggroup").singleResult();
         assertNull(group);
     }
 
+    @Test
     public void testCreateMembershipUnexistingGroup() {
         User johndoe = identityService.newUser("johndoe");
         identityService.saveUser(johndoe);
@@ -151,6 +178,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(johndoe.getId());
     }
 
+    @Test
     public void testCreateMembershipUnexistingUser() {
         Group sales = identityService.newGroup("sales");
         identityService.saveGroup(sales);
@@ -165,6 +193,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteGroup(sales.getId());
     }
 
+    @Test
     public void testCreateMembershipAlreadyExisting() {
         Group sales = identityService.newGroup("sales");
         identityService.saveGroup(sales);
@@ -184,6 +213,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(johndoe.getId());
     }
 
+    @Test
     public void testSaveGroupNullArgument() {
         try {
             identityService.saveGroup(null);
@@ -193,6 +223,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testSaveUserNullArgument() {
         try {
             identityService.saveUser(null);
@@ -202,6 +233,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testFindGroupByIdNullArgument() {
         try {
             identityService.createGroupQuery().groupId(null).singleResult();
@@ -211,6 +243,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testCreateMembershipNullArguments() {
         try {
             identityService.createMembership(null, "group");
@@ -227,6 +260,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testFindGroupsByUserIdNullArguments() {
         try {
             identityService.createGroupQuery().groupMember(null).singleResult();
@@ -236,12 +270,14 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testFindUsersByGroupUnexistingGroup() {
         List<User> users = identityService.createUserQuery().memberOfGroup("unexistinggroup").list();
         assertNotNull(users);
         assertTrue(users.isEmpty());
     }
 
+    @Test
     public void testDeleteGroupNullArguments() {
         try {
             identityService.deleteGroup(null);
@@ -251,6 +287,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testDeleteMembership() {
         Group sales = identityService.newGroup("sales");
         identityService.saveGroup(sales);
@@ -273,6 +310,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser("johndoe");
     }
 
+    @Test
     public void testDeleteMembershipWhenUserIsNoMember() {
         Group sales = identityService.newGroup("sales");
         identityService.saveGroup(sales);
@@ -287,6 +325,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser("johndoe");
     }
 
+    @Test
     public void testDeleteMembershipUnexistingGroup() {
         User johndoe = identityService.newUser("johndoe");
         identityService.saveUser(johndoe);
@@ -295,6 +334,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(johndoe.getId());
     }
 
+    @Test
     public void testDeleteMembershipUnexistingUser() {
         Group sales = identityService.newGroup("sales");
         identityService.saveGroup(sales);
@@ -303,6 +343,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteGroup(sales.getId());
     }
 
+    @Test
     public void testDeleteMemberschipNullArguments() {
         try {
             identityService.deleteMembership(null, "group");
@@ -319,6 +360,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testDeleteUserNullArguments() {
         try {
             identityService.deleteUser(null);
@@ -328,53 +370,21 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testDeleteUserUnexistingUserId() {
         // No exception should be thrown. Deleting an unexisting user should
         // be ignored silently
         identityService.deleteUser("unexistinguser");
     }
 
+    @Test
     public void testCheckPasswordNullSafe() {
         assertFalse(identityService.checkPassword("userId", null));
         assertFalse(identityService.checkPassword(null, "passwd"));
         assertFalse(identityService.checkPassword(null, null));
     }
 
-    public void testChangePassword() {
-
-        IdmEngineConfiguration idmEngineConfiguration = IdmEngines.getDefaultIdmEngine().getIdmEngineConfiguration();
-        idmEngineConfiguration.setPasswordEncoder(new ApacheDigester(ApacheDigester.Digester.MD5));
-
-        try {
-            User user = identityService.newUser("johndoe");
-            user.setPassword("xxx");
-            identityService.saveUser(user);
-    
-            user = identityService.createUserQuery().userId("johndoe").list().get(0);
-            user.setFirstName("John Doe");
-            identityService.saveUser(user);
-            User johndoe = identityService.createUserQuery().userId("johndoe").list().get(0);
-            assertFalse(johndoe.getPassword().equals("xxx"));
-            assertEquals("John Doe", johndoe.getFirstName());
-            assertTrue(identityService.checkPassword("johndoe", "xxx"));
-    
-            user = identityService.createUserQuery().userId("johndoe").list().get(0);
-            user.setPassword("yyy");
-            identityService.saveUser(user);
-            assertTrue(identityService.checkPassword("johndoe", "xxx"));
-    
-            user = identityService.createUserQuery().userId("johndoe").list().get(0);
-            user.setPassword("yyy");
-            identityService.updateUserPassword(user);
-            assertTrue(identityService.checkPassword("johndoe", "yyy"));
-    
-            identityService.deleteUser("johndoe");
-            
-        } finally {
-            idmEngineConfiguration.setPasswordEncoder(ClearTextPasswordEncoder.getInstance());
-        }
-    }
-
+    @Test
     public void testUserOptimisticLockingException() {
         User user = identityService.newUser("kermit");
         identityService.saveUser(user);
@@ -398,6 +408,7 @@ public class IdentityServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testGroupOptimisticLockingException() {
         Group group = identityService.newGroup("group");
         identityService.saveGroup(group);

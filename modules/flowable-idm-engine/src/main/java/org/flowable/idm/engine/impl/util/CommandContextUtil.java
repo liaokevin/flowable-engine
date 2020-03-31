@@ -12,10 +12,10 @@
  */
 package org.flowable.idm.engine.impl.util;
 
-import org.flowable.engine.common.impl.context.Context;
-import org.flowable.engine.common.impl.db.DbSqlSession;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.EngineConfigurationConstants;
+import org.flowable.common.engine.impl.context.Context;
+import org.flowable.common.engine.impl.db.DbSqlSession;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.EngineConfigurationConstants;
 import org.flowable.idm.engine.IdmEngineConfiguration;
 import org.flowable.idm.engine.impl.persistence.entity.ByteArrayEntityManager;
 import org.flowable.idm.engine.impl.persistence.entity.GroupEntityManager;
@@ -70,7 +70,7 @@ public class CommandContextUtil {
     }
     
     public static PropertyEntityManager getPropertyEntityManager(CommandContext commandContext) {
-        return getIdmEngineConfiguration(commandContext).getPropertyEntityManager();
+        return getIdmEngineConfiguration(commandContext).getIdmPropertyEntityManager();
     }
     
     public static UserEntityManager getUserEntityManager() {

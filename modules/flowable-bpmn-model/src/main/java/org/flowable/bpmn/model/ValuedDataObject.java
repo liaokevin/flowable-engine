@@ -25,6 +25,7 @@ public abstract class ValuedDataObject extends DataObject {
 
     public abstract void setValue(Object value);
 
+    @Override
     public abstract ValuedDataObject clone();
 
     public void setValues(ValuedDataObject otherElement) {
@@ -39,6 +40,16 @@ public abstract class ValuedDataObject extends DataObject {
         return structureRef.substring(structureRef.indexOf(':') + 1);
     }
 
+    @Override
+    public int hashCode() {
+        int result = 0;
+        result = 31 * result + (itemSubjectRef.getStructureRef() != null ? itemSubjectRef.getStructureRef().hashCode() : 0);
+        result = 31 * result + (id != null ? id.hashCode() : 0);
+        result = 31 * result + (name != null ? name.hashCode() : 0);
+        result = 31 * result + (value != null ? value.hashCode() : 0);
+        return result;
+    }
+    
     @Override
     public boolean equals(Object o) {
         if (this == o)

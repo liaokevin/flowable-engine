@@ -12,7 +12,9 @@
  */
 package org.flowable.task.service.history;
 
-import org.flowable.engine.common.api.query.NativeQuery;
+import org.flowable.common.engine.api.query.NativeQuery;
+import org.flowable.task.api.history.HistoricTaskInstance;
+import org.flowable.task.api.history.HistoricTaskInstanceQuery;
 
 /**
  * Allows querying of {@link HistoricTaskInstanceQuery}s via native (SQL) queries

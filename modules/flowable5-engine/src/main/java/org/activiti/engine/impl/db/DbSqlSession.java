@@ -51,9 +51,9 @@ import org.activiti.engine.impl.interceptor.Session;
 import org.activiti.engine.impl.persistence.entity.VariableInstanceEntity;
 import org.activiti.engine.impl.variable.DeserializedObject;
 import org.apache.ibatis.session.SqlSession;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.api.delegate.event.FlowableEventDispatcher;
-import org.flowable.variable.service.event.FlowableVariableEvent;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.variable.api.event.FlowableVariableEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,7 +104,7 @@ public class DbSqlSession implements Session {
 
         Class<? extends PersistentObject> clazz = persistentObject.getClass();
         if (!insertedObjects.containsKey(clazz)) {
-            insertedObjects.put(clazz, new ArrayList<PersistentObject>());
+            insertedObjects.put(clazz, new ArrayList<>());
         }
 
         insertedObjects.get(clazz).add(persistentObject);
@@ -311,6 +311,7 @@ public class DbSqlSession implements Session {
             }
         }
 
+        @Override
         public Class<? extends PersistentObject> getPersistentObjectClass() {
             return persistentObjectClass;
         }
@@ -542,16 +543,16 @@ public class DbSqlSession implements Session {
             int nrOfDeletes = 0;
             for (List<PersistentObject> insertedObjectList : insertedObjectLists) {
                 for (PersistentObject insertedObject : insertedObjectList) {
-                    LOGGER.debug("  insert {}", insertedObject);
+                    LOGGER.debug("insert {}", insertedObject);
                     nrOfInserts++;
                 }
             }
             for (PersistentObject updatedObject : updatedObjects) {
-                LOGGER.debug("  update {}", updatedObject);
+                LOGGER.debug("update {}", updatedObject);
                 nrOfUpdates++;
             }
             for (DeleteOperation deleteOperation : deleteOperations) {
-                LOGGER.debug("  {}", deleteOperation);
+                LOGGER.debug("{}", deleteOperation);
                 nrOfDeletes++;
             }
             LOGGER.debug("flush summary: {} insert, {} update, {} delete.", nrOfInserts, nrOfUpdates, nrOfDeletes);
@@ -1034,7 +1035,7 @@ public class DbSqlSession implements Session {
             Double.parseDouble(cleanString); // try to parse it, to see if it is really a number
             return cleanString;
         } catch (NumberFormatException nfe) {
-            throw new ActivitiException("Illegal format for version: " + versionString);
+            throw new ActivitiException("Illegal format for version: " + versionString, nfe);
         }
     }
 

@@ -17,12 +17,13 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.query.AbstractQuery;
-import org.flowable.job.service.Job;
-import org.flowable.job.service.JobQuery;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.scope.ScopeTypes;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.impl.query.AbstractQuery;
+import org.flowable.job.api.Job;
+import org.flowable.job.api.JobQuery;
 import org.flowable.job.service.impl.util.CommandContextUtil;
 
 /**
@@ -38,8 +39,12 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
     protected String executionId;
     protected String handlerType;
     protected String processDefinitionId;
-    protected boolean retriesLeft;
-    protected boolean executable;
+    protected String elementId;
+    protected String elementName;
+    protected String scopeId;
+    protected String subScopeId;
+    protected String scopeType;
+    protected String scopeDefinitionId;
     protected boolean onlyTimers;
     protected boolean onlyMessages;
     protected Date duedateHigherThan;
@@ -51,7 +56,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
     protected String tenantId;
     protected String tenantIdLike;
     protected boolean withoutTenantId;
-    protected boolean noRetriesLeft;
+    
     protected String lockOwner;
     protected boolean onlyLocked;
     protected boolean onlyUnlocked;
@@ -67,6 +72,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         super(commandExecutor);
     }
 
+    @Override
     public JobQuery jobId(String jobId) {
         if (jobId == null) {
             throw new FlowableIllegalArgumentException("Provided job id is null");
@@ -75,6 +81,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQueryImpl processInstanceId(String processInstanceId) {
         if (processInstanceId == null) {
             throw new FlowableIllegalArgumentException("Provided process instance id is null");
@@ -83,6 +90,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQueryImpl processDefinitionId(String processDefinitionId) {
         if (processDefinitionId == null) {
             throw new FlowableIllegalArgumentException("Provided process definition id is null");
@@ -90,7 +98,92 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         this.processDefinitionId = processDefinitionId;
         return this;
     }
+    
+    @Override
+    public JobQueryImpl elementId(String elementId) {
+        if (elementId == null) {
+            throw new FlowableIllegalArgumentException("Provided element id is null");
+        }
+        this.elementId = elementId;
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl elementName(String elementName) {
+        if (elementName == null) {
+            throw new FlowableIllegalArgumentException("Provided element name is null");
+        }
+        this.elementName = elementName;
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl scopeId(String scopeId) {
+        if (scopeId == null) {
+            throw new FlowableIllegalArgumentException("Provided scope id is null");
+        }
+        this.scopeId = scopeId;
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl subScopeId(String subScopeId) {
+        if (subScopeId == null) {
+            throw new FlowableIllegalArgumentException("Provided sub scope id is null");
+        }
+        this.subScopeId = subScopeId;
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl scopeType(String scopeType) {
+        if (scopeType == null) {
+            throw new FlowableIllegalArgumentException("Provided scope type is null");
+        }
+        this.scopeType = scopeType;
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl scopeDefinitionId(String scopeDefinitionId) {
+        if (scopeDefinitionId == null) {
+            throw new FlowableIllegalArgumentException("Provided scope definitionid is null");
+        }
+        this.scopeDefinitionId = scopeDefinitionId;
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl caseInstanceId(String caseInstanceId) {
+        if (caseInstanceId == null) {
+            throw new FlowableIllegalArgumentException("Provided case instance id is null");
+        }
+        scopeId(caseInstanceId);
+        scopeType(ScopeTypes.CMMN);
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl caseDefinitionId(String caseDefinitionId) {
+        if (caseDefinitionId == null) {
+            throw new FlowableIllegalArgumentException("Provided case definition id is null");
+        }
+        scopeDefinitionId(caseDefinitionId);
+        scopeType(ScopeTypes.CMMN);
+        return this;
+    }
+    
+    @Override
+    public JobQueryImpl planItemInstanceId(String planItemInstanceId) {
+        if (planItemInstanceId == null) {
+            throw new FlowableIllegalArgumentException("Provided plan item instance id is null");
+        }
+        subScopeId(planItemInstanceId);
+        scopeType(ScopeTypes.CMMN);
+        return this;
+    }
 
+    @Override
     public JobQueryImpl executionId(String executionId) {
         if (executionId == null) {
             throw new FlowableIllegalArgumentException("Provided execution id is null");
@@ -99,6 +192,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQueryImpl handlerType(String handlerType) {
         if (handlerType == null) {
             throw new FlowableIllegalArgumentException("Provided handlerType is null");
@@ -107,16 +201,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
-    public JobQuery withRetriesLeft() {
-        retriesLeft = true;
-        return this;
-    }
-
-    public JobQuery executable() {
-        executable = true;
-        return this;
-    }
-
+    @Override
     public JobQuery timers() {
         if (onlyMessages) {
             throw new FlowableIllegalArgumentException("Cannot combine onlyTimers() with onlyMessages() in the same query");
@@ -125,6 +210,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQuery messages() {
         if (onlyTimers) {
             throw new FlowableIllegalArgumentException("Cannot combine onlyTimers() with onlyMessages() in the same query");
@@ -133,6 +219,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQuery duedateHigherThan(Date date) {
         if (date == null) {
             throw new FlowableIllegalArgumentException("Provided date is null");
@@ -141,6 +228,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQuery duedateLowerThan(Date date) {
         if (date == null) {
             throw new FlowableIllegalArgumentException("Provided date is null");
@@ -149,40 +237,13 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
-    public JobQuery duedateHigherThen(Date date) {
-        return duedateHigherThan(date);
-    }
-
-    public JobQuery duedateHigherThenOrEquals(Date date) {
-        if (date == null) {
-            throw new FlowableIllegalArgumentException("Provided date is null");
-        }
-        this.duedateHigherThanOrEqual = date;
-        return this;
-    }
-
-    public JobQuery duedateLowerThen(Date date) {
-        return duedateLowerThan(date);
-    }
-
-    public JobQuery duedateLowerThenOrEquals(Date date) {
-        if (date == null) {
-            throw new FlowableIllegalArgumentException("Provided date is null");
-        }
-        this.duedateLowerThanOrEqual = date;
-        return this;
-    }
-
-    public JobQuery noRetriesLeft() {
-        noRetriesLeft = true;
-        return this;
-    }
-
+    @Override
     public JobQuery withException() {
         this.withException = true;
         return this;
     }
 
+    @Override
     public JobQuery exceptionMessage(String exceptionMessage) {
         if (exceptionMessage == null) {
             throw new FlowableIllegalArgumentException("Provided exception message is null");
@@ -191,6 +252,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQuery jobTenantId(String tenantId) {
         if (tenantId == null) {
             throw new FlowableIllegalArgumentException("Provided tenant id is null");
@@ -199,6 +261,7 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQuery jobTenantIdLike(String tenantIdLike) {
         if (tenantIdLike == null) {
             throw new FlowableIllegalArgumentException("Provided tenant id is null");
@@ -207,21 +270,25 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
         return this;
     }
 
+    @Override
     public JobQuery jobWithoutTenantId() {
         this.withoutTenantId = true;
         return this;
     }
 
+    @Override
     public JobQuery lockOwner(String lockOwner) {
         this.lockOwner = lockOwner;
         return this;
     }
 
+    @Override
     public JobQuery locked() {
         this.onlyLocked = true;
         return this;
     }
 
+    @Override
     public JobQuery unlocked() {
         this.onlyUnlocked = true;
         return this;
@@ -229,39 +296,45 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
 
     // sorting //////////////////////////////////////////
 
+    @Override
     public JobQuery orderByJobDuedate() {
         return orderBy(JobQueryProperty.DUEDATE);
     }
 
+    @Override
     public JobQuery orderByExecutionId() {
         return orderBy(JobQueryProperty.EXECUTION_ID);
     }
 
+    @Override
     public JobQuery orderByJobId() {
         return orderBy(JobQueryProperty.JOB_ID);
     }
 
+    @Override
     public JobQuery orderByProcessInstanceId() {
         return orderBy(JobQueryProperty.PROCESS_INSTANCE_ID);
     }
 
+    @Override
     public JobQuery orderByJobRetries() {
         return orderBy(JobQueryProperty.RETRIES);
     }
 
+    @Override
     public JobQuery orderByTenantId() {
         return orderBy(JobQueryProperty.TENANT_ID);
     }
 
     // results //////////////////////////////////////////
 
+    @Override
     public long executeCount(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getJobEntityManager(commandContext).findJobCountByQueryCriteria(this);
     }
 
+    @Override
     public List<Job> executeList(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getJobEntityManager(commandContext).findJobsByQueryCriteria(this);
     }
 
@@ -277,14 +350,6 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
 
     public String getHandlerType() {
         return this.handlerType;
-    }
-
-    public boolean getRetriesLeft() {
-        return retriesLeft;
-    }
-
-    public boolean getExecutable() {
-        return executable;
     }
 
     public Date getNow() {
@@ -322,6 +387,22 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
     public String getProcessDefinitionId() {
         return processDefinitionId;
     }
+    
+    public String getScopeId() {
+        return scopeId;
+    }
+
+    public String getSubScopeId() {
+        return subScopeId;
+    }
+
+    public String getScopeType() {
+        return scopeType;
+    }
+
+    public String getScopeDefinitionId() {
+        return scopeDefinitionId;
+    }
 
     public boolean isOnlyTimers() {
         return onlyTimers;
@@ -345,10 +426,6 @@ public class JobQueryImpl extends AbstractQuery<JobQuery, Job> implements JobQue
 
     public Date getDuedateLowerThanOrEqual() {
         return duedateLowerThanOrEqual;
-    }
-
-    public boolean isNoRetriesLeft() {
-        return noRetriesLeft;
     }
 
     public String getLockOwner() {

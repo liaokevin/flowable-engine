@@ -14,24 +14,27 @@ package org.flowable.engine.test.cfg.executioncount;
 
 import java.util.List;
 
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.persistence.entity.PropertyEntity;
 import org.flowable.engine.ProcessEngineConfiguration;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.cmd.ValidateExecutionRelatedEntityCountCfgCmd;
 import org.flowable.engine.impl.persistence.CountingExecutionEntity;
-import org.flowable.engine.impl.persistence.entity.PropertyEntity;
 import org.flowable.engine.impl.test.ResourceFlowableTestCase;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * @author Joram Barrez
  */
+@DisabledIfSystemProperty(named = "database", matches = "cockroachdb")
 public class ChangeConfigAndRebootEngineTest extends ResourceFlowableTestCase {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ChangeConfigAndRebootEngineTest.class);
@@ -56,11 +59,10 @@ public class ChangeConfigAndRebootEngineTest extends ResourceFlowableTestCase {
     protected void rebootEngine(boolean newExecutionRelationshipCountValue) {
         LOGGER.info("Rebooting engine");
         this.newExecutionRelationshipCountValue = newExecutionRelationshipCountValue;
-        closeDownProcessEngine();
-        initializeProcessEngine();
-        initializeServices();
+        rebootEngine();
     }
 
+    @Test
     @Deployment
     public void testChangeExecutionCountSettingAndRebootengine() {
 
@@ -131,7 +133,7 @@ public class ChangeConfigAndRebootEngineTest extends ResourceFlowableTestCase {
     }
 
     protected void finishProcessInstance(ProcessInstance processInstance) {
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         taskService.complete(task.getId());
         task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         taskService.complete(task.getId());

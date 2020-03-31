@@ -105,17 +105,19 @@ public class BPMNLayout extends mxGraphLayout {
         this.invert = invert;
     }
 
+    @Override
     public mxGraph getGraph() {
         return graph;
     }
 
     /**
-     * Returns a boolean indicating if the given <mxCell> should be ignored as a vertex. This returns true if the cell has no connections.
+     * Returns a boolean indicating if the given mxCell should be ignored as a vertex. This returns true if the cell has no connections.
      * 
      * @param vertex
      *            Object that represents the vertex to be tested.
      * @return Returns true if the vertex should be ignored.
      */
+    @Override
     public boolean isVertexIgnored(Object vertex) {
         return super.isVertexIgnored(vertex) || graph.isSwimlane(vertex) || graph.getModel().getGeometry(vertex).isRelative() || graph.getConnections(vertex).length == 0;
     }
@@ -225,6 +227,7 @@ public class BPMNLayout extends mxGraphLayout {
         this.nodeDistance = nodeDistance;
     }
 
+    @Override
     public void execute(Object parent) {
         mxIGraphModel model = graph.getModel();
         List<Object> roots = graph.findTreeRoots(parent, true, invert);

@@ -101,6 +101,26 @@ public interface HistoricProcessInstance {
      * The description for the process instance.
      */
     String getDescription();
+    
+    /**
+     * The callback id for the process instance. 
+     */
+    String getCallbackId();
+    
+    /**
+     * The callback type for the process instance.
+     */
+    String getCallbackType();
+
+    /**
+     * The reference id for the process instance.
+     */
+    String getReferenceId();
+
+    /**
+     * The reference type for the process instance.
+     */
+    String getReferenceType();
 
     /** Returns the process variables if requested in the process instance query */
     Map<String, Object> getProcessVariables();

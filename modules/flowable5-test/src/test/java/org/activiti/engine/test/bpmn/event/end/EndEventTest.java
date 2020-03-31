@@ -13,7 +13,7 @@
 package org.activiti.engine.test.bpmn.event.end;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.api.FlowableOptimisticLockingException;
+import org.flowable.common.engine.api.FlowableOptimisticLockingException;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 
@@ -26,7 +26,7 @@ public class EndEventTest extends PluggableFlowableTestCase {
     @Deployment
     public void testConcurrentEndOfSameProcess() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskWithDelay");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertNotNull(task);
 
         // We will now start two threads that both complete the task.

@@ -13,6 +13,9 @@
 
 package org.flowable.rest.service.api.history;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,7 +34,8 @@ import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,6 +53,7 @@ public class HistoricTaskInstanceCollectionResourceTest extends BaseSpringRestTe
     /**
      * Test querying historic task instance. GET history/historic-task-instances
      */
+    @Test
     @Deployment
     public void testQueryTaskInstances() throws Exception {
         HashMap<String, Object> processVariables = new HashMap<>();
@@ -99,6 +104,10 @@ public class HistoricTaskInstanceCollectionResourceTest extends BaseSpringRestTe
         assertResultsPresentInDataResponse(url + "?processInstanceId=" + processInstance.getId(), 2, task.getId());
 
         assertResultsPresentInDataResponse(url + "?processInstanceId=" + processInstance2.getId(), 1, task2.getId());
+        
+        assertResultsPresentInDataResponse(url + "?processInstanceIdWithChildren=" + processInstance.getId(), 2, task.getId());
+        
+        assertResultsPresentInDataResponse(url + "?processInstanceIdWithChildren=nonexisting", 0);
 
         assertResultsPresentInDataResponse(url + "?taskAssignee=kermit", 2, task2.getId());
 
@@ -111,6 +120,10 @@ public class HistoricTaskInstanceCollectionResourceTest extends BaseSpringRestTe
         assertResultsPresentInDataResponse(url + "?taskOwnerLike=" + encode("t%"), 1, task.getId());
 
         assertResultsPresentInDataResponse(url + "?taskInvolvedUser=test", 1, task.getId());
+
+        assertResultsPresentInDataResponse(url + "?taskDefinitionKey=processTask2", 1, task.getId());
+
+        assertResultsPresentInDataResponse(url + "?taskDefinitionKeys=processTask,processTask2", 3, task.getId(), task1.getId(), task2.getId());
 
         assertResultsPresentInDataResponse(url + "?dueDateAfter=" + dateFormat.format(new GregorianCalendar(2010, 0, 1).getTime()), 1, task.getId());
 

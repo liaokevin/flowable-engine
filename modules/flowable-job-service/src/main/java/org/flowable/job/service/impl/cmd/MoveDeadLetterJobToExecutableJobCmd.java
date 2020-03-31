@@ -14,10 +14,10 @@ package org.flowable.job.service.impl.cmd;
 
 import java.io.Serializable;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.job.service.JobNotFoundException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.job.api.JobNotFoundException;
 import org.flowable.job.service.impl.persistence.entity.DeadLetterJobEntity;
 import org.flowable.job.service.impl.persistence.entity.JobEntity;
 import org.flowable.job.service.impl.util.CommandContextUtil;
@@ -41,6 +41,7 @@ public class MoveDeadLetterJobToExecutableJobCmd implements Command<JobEntity>, 
         this.retries = retries;
     }
 
+    @Override
     public JobEntity execute(CommandContext commandContext) {
 
         if (jobId == null) {

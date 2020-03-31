@@ -12,7 +12,8 @@
  */
 package org.flowable.variable.service.impl.persistence.entity;
 
-import org.flowable.variable.service.delegate.VariableScope;
+import org.flowable.variable.api.delegate.VariableScope;
+import org.flowable.variable.api.persistence.entity.VariableInstance;
 
 /**
  * A dummy implementation of {@link VariableInstance}, used for storing transient variables on a {@link VariableScope}, as the {@link VariableScope} works with instances of {@link VariableInstance}
@@ -24,7 +25,7 @@ import org.flowable.variable.service.delegate.VariableScope;
  */
 public class TransientVariableInstance implements VariableInstance {
 
-    public static String TYPE_TRANSIENT = "transient";
+    public static final String TYPE_TRANSIENT = "transient";
 
     protected String variableName;
     protected Object variableValue;
@@ -110,56 +111,6 @@ public class TransientVariableInstance implements VariableInstance {
     }
 
     @Override
-    public boolean isInserted() {
-        return false;
-    }
-
-    @Override
-    public void setInserted(boolean inserted) {
-
-    }
-
-    @Override
-    public boolean isUpdated() {
-        return false;
-    }
-
-    @Override
-    public void setUpdated(boolean updated) {
-
-    }
-
-    @Override
-    public boolean isDeleted() {
-        return false;
-    }
-
-    @Override
-    public void setDeleted(boolean deleted) {
-
-    }
-
-    @Override
-    public Object getPersistentState() {
-        return null;
-    }
-
-    @Override
-    public void setRevision(int revision) {
-
-    }
-
-    @Override
-    public int getRevision() {
-        return 0;
-    }
-
-    @Override
-    public int getRevisionNext() {
-        return 0;
-    }
-
-    @Override
     public void setName(String name) {
 
     }
@@ -223,14 +174,35 @@ public class TransientVariableInstance implements VariableInstance {
     public String getExecutionId() {
         return null;
     }
-
+    
     @Override
-    public Object getOriginalPersistentState() {
+    public String getScopeId() {
         return null;
     }
 
     @Override
-    public void setOriginalPersistentState(Object persistentState) {
+    public String getScopeType() {
+        return null;
+    }
+
+    @Override
+    public void setScopeId(String scopeId) {
         
     }
+    
+    @Override
+    public String getSubScopeId() {
+        return null;
+    }
+    
+    @Override
+    public void setSubScopeId(String subScopeId) {
+        
+    }
+
+    @Override
+    public void setScopeType(String scopeType) {
+        
+    }
+
 }

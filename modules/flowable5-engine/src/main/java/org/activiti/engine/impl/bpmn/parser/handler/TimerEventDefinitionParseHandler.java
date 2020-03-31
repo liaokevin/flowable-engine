@@ -34,8 +34,8 @@ import org.flowable.bpmn.model.BoundaryEvent;
 import org.flowable.bpmn.model.IntermediateCatchEvent;
 import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.TimerEventDefinition;
+import org.flowable.common.engine.api.delegate.Expression;
 import org.flowable.engine.impl.jobexecutor.TimerDeclarationType;
-import org.flowable.variable.service.delegate.Expression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,10 +48,12 @@ public class TimerEventDefinitionParseHandler extends AbstractBpmnParseHandler<T
 
     public static final String PROPERTYNAME_START_TIMER = "timerStart";
 
+    @Override
     public Class<? extends BaseElement> getHandledType() {
         return TimerEventDefinition.class;
     }
 
+    @Override
     protected void executeParse(BpmnParse bpmnParse, TimerEventDefinition timerEventDefinition) {
 
         ActivityImpl timerActivity = bpmnParse.getCurrentActivity();

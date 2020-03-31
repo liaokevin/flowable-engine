@@ -14,13 +14,15 @@ package org.flowable.job.service.impl.cmd;
 
 import java.io.Serializable;
 
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.api.FlowableObjectNotFoundException;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.job.service.Job;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.job.api.Job;
+import org.flowable.job.service.InternalJobCompatibilityManager;
 import org.flowable.job.service.JobServiceConfiguration;
 import org.flowable.job.service.event.impl.FlowableJobEventBuilder;
 import org.flowable.job.service.impl.persistence.entity.JobEntity;
@@ -44,14 +46,14 @@ public class DeleteJobCmd implements Command<Object>, Serializable {
         this.jobId = jobId;
     }
 
+    @Override
     public Object execute(CommandContext commandContext) {
         JobEntity jobToDelete = getJobToDelete(commandContext);
 
         JobServiceConfiguration jobServiceConfiguration = CommandContextUtil.getJobServiceConfiguration(commandContext);
-        if (jobServiceConfiguration.getJobScopeInterface() != null && 
-                        jobServiceConfiguration.getJobScopeInterface().isFlowable5ProcessDefinitionId(jobToDelete.getProcessDefinitionId())) {
-            
-            jobServiceConfiguration.getJobScopeInterface().deleteV5Job(jobToDelete.getId());
+        InternalJobCompatibilityManager internalJobCompatibilityManager = jobServiceConfiguration.getInternalJobCompatibilityManager(); 
+        if (internalJobCompatibilityManager != null && internalJobCompatibilityManager.isFlowable5Job(jobToDelete)) {
+            internalJobCompatibilityManager.deleteV5Job(jobToDelete.getId());
             return null;
         }
 
@@ -62,8 +64,10 @@ public class DeleteJobCmd implements Command<Object>, Serializable {
     }
 
     protected void sendCancelEvent(JobEntity jobToDelete) {
-        if (CommandContextUtil.getJobServiceConfiguration().getEventDispatcher().isEnabled()) {
-            CommandContextUtil.getJobServiceConfiguration().getEventDispatcher().dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_CANCELED, jobToDelete));
+        FlowableEventDispatcher eventDispatcher = CommandContextUtil.getJobServiceConfiguration().getEventDispatcher();
+        if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+            eventDispatcher
+                .dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_CANCELED, jobToDelete));
         }
     }
 
@@ -81,7 +85,7 @@ public class DeleteJobCmd implements Command<Object>, Serializable {
         }
 
         // We need to check if the job was locked, ie acquired by the job acquisition thread
-        // This happens if the the job was already acquired, but not yet executed.
+        // This happens if the job was already acquired, but not yet executed.
         // In that case, we can't allow to delete the job.
         if (job.getLockOwner() != null) {
             throw new FlowableException("Cannot delete job when the job is being executed. Try again later.");

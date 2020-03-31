@@ -1,9 +1,9 @@
 /* Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,30 +17,30 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.impl.Page;
-import org.flowable.engine.common.impl.calendar.BusinessCalendar;
-import org.flowable.job.service.Job;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
+import org.flowable.common.engine.impl.Page;
+import org.flowable.common.engine.impl.calendar.BusinessCalendar;
+import org.flowable.job.api.Job;
 import org.flowable.job.service.JobServiceConfiguration;
 import org.flowable.job.service.event.impl.FlowableJobEventBuilder;
 import org.flowable.job.service.impl.TimerJobQueryImpl;
 import org.flowable.job.service.impl.persistence.entity.data.TimerJobDataManager;
-import org.flowable.variable.service.delegate.VariableScope;
+import org.flowable.variable.api.delegate.VariableScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * @author Tijs Rademakers
  */
-public class TimerJobEntityManagerImpl extends AbstractEntityManager<TimerJobEntity> implements TimerJobEntityManager {
+public class TimerJobEntityManagerImpl
+    extends AbstractJobServiceEngineEntityManager<TimerJobEntity, TimerJobDataManager>
+    implements TimerJobEntityManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TimerJobEntityManagerImpl.class);
 
-    protected TimerJobDataManager jobDataManager;
-
     public TimerJobEntityManagerImpl(JobServiceConfiguration jobServiceConfiguration, TimerJobDataManager jobDataManager) {
-        super(jobServiceConfiguration);
-        this.jobDataManager = jobDataManager;
+        super(jobServiceConfiguration, jobDataManager);
     }
 
     @Override
@@ -62,47 +62,52 @@ public class TimerJobEntityManagerImpl extends AbstractEntityManager<TimerJobEnt
 
     @Override
     public List<TimerJobEntity> findTimerJobsToExecute(Page page) {
-        return jobDataManager.findTimerJobsToExecute(page);
+        return dataManager.findTimerJobsToExecute(page);
     }
 
     @Override
     public List<TimerJobEntity> findJobsByTypeAndProcessDefinitionId(String jobHandlerType, String processDefinitionId) {
-        return jobDataManager.findJobsByTypeAndProcessDefinitionId(jobHandlerType, processDefinitionId);
+        return dataManager.findJobsByTypeAndProcessDefinitionId(jobHandlerType, processDefinitionId);
     }
 
     @Override
     public List<TimerJobEntity> findJobsByTypeAndProcessDefinitionKeyNoTenantId(String jobHandlerType, String processDefinitionKey) {
-        return jobDataManager.findJobsByTypeAndProcessDefinitionKeyNoTenantId(jobHandlerType, processDefinitionKey);
+        return dataManager.findJobsByTypeAndProcessDefinitionKeyNoTenantId(jobHandlerType, processDefinitionKey);
     }
 
     @Override
     public List<TimerJobEntity> findJobsByTypeAndProcessDefinitionKeyAndTenantId(String jobHandlerType, String processDefinitionKey, String tenantId) {
-        return jobDataManager.findJobsByTypeAndProcessDefinitionKeyAndTenantId(jobHandlerType, processDefinitionKey, tenantId);
+        return dataManager.findJobsByTypeAndProcessDefinitionKeyAndTenantId(jobHandlerType, processDefinitionKey, tenantId);
     }
 
     @Override
     public List<TimerJobEntity> findJobsByExecutionId(String id) {
-        return jobDataManager.findJobsByExecutionId(id);
+        return dataManager.findJobsByExecutionId(id);
     }
 
     @Override
     public List<TimerJobEntity> findJobsByProcessInstanceId(String id) {
-        return jobDataManager.findJobsByProcessInstanceId(id);
+        return dataManager.findJobsByProcessInstanceId(id);
+    }
+
+    @Override
+    public List<TimerJobEntity> findJobsByScopeIdAndSubScopeId(String scopeId, String subScopeId) {
+        return dataManager.findJobsByScopeIdAndSubScopeId(scopeId, subScopeId);
     }
 
     @Override
     public List<Job> findJobsByQueryCriteria(TimerJobQueryImpl jobQuery) {
-        return jobDataManager.findJobsByQueryCriteria(jobQuery);
+        return dataManager.findJobsByQueryCriteria(jobQuery);
     }
 
     @Override
     public long findJobCountByQueryCriteria(TimerJobQueryImpl jobQuery) {
-        return jobDataManager.findJobCountByQueryCriteria(jobQuery);
+        return dataManager.findJobCountByQueryCriteria(jobQuery);
     }
 
     @Override
     public void updateJobTenantIdForDeployment(String deploymentId, String newTenantId) {
-        jobDataManager.updateJobTenantIdForDeployment(deploymentId, newTenantId);
+        dataManager.updateJobTenantIdForDeployment(deploymentId, newTenantId);
     }
 
     @Override
@@ -121,43 +126,40 @@ public class TimerJobEntityManagerImpl extends AbstractEntityManager<TimerJobEnt
     }
 
     protected boolean doInsert(TimerJobEntity jobEntity, boolean fireCreateEvent) {
-        boolean handledJob = getJobServiceConfiguration().getJobScopeInterface().handleJobInsert(jobEntity);
-        if (!handledJob) {
-            return false;
+        if (serviceConfiguration.getInternalJobManager() != null) {
+            boolean handledJob = serviceConfiguration.getInternalJobManager().handleJobInsert(jobEntity);
+            if (!handledJob) {
+                return false;
+            }
         }
-        
-        jobEntity.setCreateTime(getJobServiceConfiguration().getClock().getCurrentTime());
+
+        jobEntity.setCreateTime(getClock().getCurrentTime());
         super.insert(jobEntity, fireCreateEvent);
         return true;
     }
 
     @Override
     public void delete(TimerJobEntity jobEntity) {
-        super.delete(jobEntity);
+        super.delete(jobEntity, false);
 
-        deleteExceptionByteArrayRef(jobEntity);
-        
-        getJobServiceConfiguration().getJobScopeInterface().handleJobDelete(jobEntity);
+        deleteByteArrayRef(jobEntity.getExceptionByteArrayRef());
+        deleteByteArrayRef(jobEntity.getCustomValuesByteArrayRef());
+
+        if (serviceConfiguration.getInternalJobManager() != null) {
+            serviceConfiguration.getInternalJobManager().handleJobDelete(jobEntity);
+        }
 
         // Send event
-        if (getEventDispatcher().isEnabled()) {
-            getEventDispatcher().dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.ENTITY_DELETED, this));
+        FlowableEventDispatcher eventDispatcher = getEventDispatcher();
+        if (eventDispatcher != null && eventDispatcher.isEnabled()) {
+            eventDispatcher.dispatchEvent(FlowableJobEventBuilder.createEntityEvent(FlowableEngineEventType.ENTITY_DELETED, jobEntity));
         }
     }
-
-    /**
-     * Deletes a the byte array used to store the exception information. Subclasses may override to provide custom implementations.
-     */
-    protected void deleteExceptionByteArrayRef(TimerJobEntity jobEntity) {
-        JobByteArrayRef exceptionByteArrayRef = jobEntity.getExceptionByteArrayRef();
-        if (exceptionByteArrayRef != null) {
-            exceptionByteArrayRef.delete();
-        }
-    }
-
+    
     protected TimerJobEntity createTimer(JobEntity te) {
         TimerJobEntity newTimerEntity = create();
         newTimerEntity.setJobHandlerConfiguration(te.getJobHandlerConfiguration());
+        newTimerEntity.setCustomValues(te.getCustomValues());
         newTimerEntity.setJobHandlerType(te.getJobHandlerType());
         newTimerEntity.setExclusive(te.isExclusive());
         newTimerEntity.setRepeat(te.getRepeat());
@@ -166,6 +168,10 @@ public class TimerJobEntityManagerImpl extends AbstractEntityManager<TimerJobEnt
         newTimerEntity.setExecutionId(te.getExecutionId());
         newTimerEntity.setProcessInstanceId(te.getProcessInstanceId());
         newTimerEntity.setProcessDefinitionId(te.getProcessDefinitionId());
+        newTimerEntity.setScopeId(te.getScopeId());
+        newTimerEntity.setSubScopeId(te.getSubScopeId());
+        newTimerEntity.setScopeDefinitionId(te.getScopeDefinitionId());
+        newTimerEntity.setScopeType(te.getScopeType());
 
         // Inherit tenant
         newTimerEntity.setTenantId(te.getTenantId());
@@ -186,14 +192,14 @@ public class TimerJobEntityManagerImpl extends AbstractEntityManager<TimerJobEnt
     }
 
     protected boolean isValidTime(JobEntity timerEntity, Date newTimerDate, VariableScope variableScope) {
-        BusinessCalendar businessCalendar = getJobServiceConfiguration().getBusinessCalendarManager().getBusinessCalendar(
-                        getJobServiceConfiguration().getJobManager().getBusinessCalendarName(timerEntity, variableScope));
+        BusinessCalendar businessCalendar = serviceConfiguration.getBusinessCalendarManager().getBusinessCalendar(
+                        serviceConfiguration.getJobManager().getBusinessCalendarName(timerEntity, variableScope));
         return businessCalendar.validateDuedate(timerEntity.getRepeat(), timerEntity.getMaxIterations(), timerEntity.getEndDate(), newTimerDate);
     }
 
     protected Date calculateNextTimer(JobEntity timerEntity, VariableScope variableScope) {
-        BusinessCalendar businessCalendar = getJobServiceConfiguration().getBusinessCalendarManager().getBusinessCalendar(
-                        getJobServiceConfiguration().getJobManager().getBusinessCalendarName(timerEntity, variableScope));
+        BusinessCalendar businessCalendar = serviceConfiguration.getBusinessCalendarManager().getBusinessCalendar(
+                        serviceConfiguration.getJobManager().getBusinessCalendarName(timerEntity, variableScope));
         return businessCalendar.resolveDuedate(timerEntity.getRepeat(), timerEntity.getMaxIterations());
     }
 
@@ -207,13 +213,5 @@ public class TimerJobEntityManagerImpl extends AbstractEntityManager<TimerJobEnt
             }
         }
         return times;
-    }
-
-    protected TimerJobDataManager getDataManager() {
-        return jobDataManager;
-    }
-
-    public void setJobDataManager(TimerJobDataManager jobDataManager) {
-        this.jobDataManager = jobDataManager;
     }
 }

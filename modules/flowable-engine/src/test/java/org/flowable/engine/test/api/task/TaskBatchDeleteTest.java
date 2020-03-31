@@ -15,12 +15,14 @@ package org.flowable.engine.test.api.task;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
+import org.junit.jupiter.api.Test;
 
 public class TaskBatchDeleteTest extends PluggableFlowableTestCase {
 
     /**
      * Validating fix for ACT-2070
      */
+    @Test
     @Deployment
     public void testDeleteTaskWithChildren() throws Exception {
 
@@ -33,7 +35,7 @@ public class TaskBatchDeleteTest extends PluggableFlowableTestCase {
         // org.flowable.task.service.Task 1, Identity link pointing to task 1, org.flowable.task.service.Task 2
         // The task deletes shouldn't be batched in this case, keeping the
         // related entity delete order
-        org.flowable.task.service.Task firstTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).taskDefinitionKey("taskOne").singleResult();
+        org.flowable.task.api.Task firstTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).taskDefinitionKey("taskOne").singleResult();
         assertNotNull(firstTask);
 
         taskService.complete(firstTask.getId());
@@ -44,6 +46,7 @@ public class TaskBatchDeleteTest extends PluggableFlowableTestCase {
 
     }
 
+    @Test
     @Deployment
     public void testDeleteCancelledMultiInstanceTasks() throws Exception {
 
@@ -51,11 +54,11 @@ public class TaskBatchDeleteTest extends PluggableFlowableTestCase {
         assertNotNull(processInstance);
         assertFalse(processInstance.isEnded());
 
-        org.flowable.task.service.Task lastTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).taskDefinitionKey("multiInstance").listPage(4, 1).get(0);
+        org.flowable.task.api.Task lastTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).taskDefinitionKey("multiInstance").listPage(4, 1).get(0);
 
         taskService.addCandidateGroup(lastTask.getId(), "sales");
 
-        org.flowable.task.service.Task firstTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).taskDefinitionKey("multiInstance").listPage(0, 1).get(0);
+        org.flowable.task.api.Task firstTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).taskDefinitionKey("multiInstance").listPage(0, 1).get(0);
         assertNotNull(firstTask);
 
         taskService.complete(firstTask.getId());
@@ -64,7 +67,7 @@ public class TaskBatchDeleteTest extends PluggableFlowableTestCase {
         processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNull(processInstance);
         
-        waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+        waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
         
     }
 }

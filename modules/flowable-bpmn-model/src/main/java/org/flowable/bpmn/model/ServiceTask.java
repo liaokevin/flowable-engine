@@ -1,9 +1,9 @@
 /* Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,6 +23,9 @@ public class ServiceTask extends TaskWithFieldExtensions {
     public static final String DMN_TASK = "dmn";
     public static final String MAIL_TASK = "mail";
     public static final String HTTP_TASK = "http";
+    public static final String SHELL_TASK = "shell";
+    public static final String CASE_TASK = "case";
+    public static final String SEND_EVENT_TASK = "send-event";
 
     protected String implementation;
     protected String implementationType;
@@ -32,6 +35,9 @@ public class ServiceTask extends TaskWithFieldExtensions {
     protected String extensionId;
     protected List<CustomProperty> customProperties = new ArrayList<>();
     protected String skipExpression;
+    protected boolean useLocalScopeForResultVariable;
+    protected boolean triggerable;
+    protected boolean storeResultVariableAsTransient;
 
     public String getImplementation() {
         return implementation;
@@ -101,6 +107,31 @@ public class ServiceTask extends TaskWithFieldExtensions {
         this.skipExpression = skipExpression;
     }
 
+    public boolean isUseLocalScopeForResultVariable() {
+        return useLocalScopeForResultVariable;
+    }
+
+    public void setUseLocalScopeForResultVariable(boolean useLocalScopeForResultVariable) {
+        this.useLocalScopeForResultVariable = useLocalScopeForResultVariable;
+    }
+
+    public boolean isTriggerable() {
+        return triggerable;
+    }
+
+    public void setTriggerable(boolean triggerable) {
+        this.triggerable = triggerable;
+    }
+
+    public boolean isStoreResultVariableAsTransient() {
+        return storeResultVariableAsTransient;
+    }
+
+    public void setStoreResultVariableAsTransient(boolean storeResultVariableAsTransient) {
+        this.storeResultVariableAsTransient = storeResultVariableAsTransient;
+    }
+
+    @Override
     public ServiceTask clone() {
         ServiceTask clone = new ServiceTask();
         clone.setValues(this);
@@ -116,6 +147,9 @@ public class ServiceTask extends TaskWithFieldExtensions {
         setOperationRef(otherElement.getOperationRef());
         setExtensionId(otherElement.getExtensionId());
         setSkipExpression(otherElement.getSkipExpression());
+        setUseLocalScopeForResultVariable(otherElement.isUseLocalScopeForResultVariable());
+        setTriggerable(otherElement.isTriggerable());
+        setStoreResultVariableAsTransient(otherElement.isStoreResultVariableAsTransient());
 
         fieldExtensions = new ArrayList<>();
         if (otherElement.getFieldExtensions() != null && !otherElement.getFieldExtensions().isEmpty()) {

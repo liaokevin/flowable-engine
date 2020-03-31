@@ -24,11 +24,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.ibatis.session.RowBounds;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.management.TableMetaData;
-import org.flowable.engine.common.api.management.TablePage;
-import org.flowable.engine.common.impl.db.DbSqlSession;
-import org.flowable.engine.common.impl.persistence.entity.Entity;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.management.TableMetaData;
+import org.flowable.common.engine.api.management.TablePage;
+import org.flowable.common.engine.impl.db.DbSqlSession;
+import org.flowable.common.engine.impl.persistence.entity.Entity;
+import org.flowable.common.engine.impl.persistence.entity.PropertyEntity;
 import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.history.HistoricDetail;
 import org.flowable.engine.history.HistoricFormProperty;
@@ -42,18 +43,24 @@ import org.flowable.engine.repository.Model;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
+import org.flowable.eventsubscription.service.impl.persistence.entity.CompensateEventSubscriptionEntity;
+import org.flowable.eventsubscription.service.impl.persistence.entity.EventSubscriptionEntity;
+import org.flowable.eventsubscription.service.impl.persistence.entity.MessageEventSubscriptionEntity;
+import org.flowable.eventsubscription.service.impl.persistence.entity.SignalEventSubscriptionEntity;
 import org.flowable.identitylink.service.impl.persistence.entity.HistoricIdentityLinkEntity;
 import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEntity;
-import org.flowable.job.service.Job;
+import org.flowable.job.api.Job;
 import org.flowable.job.service.impl.persistence.entity.DeadLetterJobEntity;
 import org.flowable.job.service.impl.persistence.entity.JobEntity;
 import org.flowable.job.service.impl.persistence.entity.SuspendedJobEntity;
 import org.flowable.job.service.impl.persistence.entity.TimerJobEntity;
-import org.flowable.task.service.Task;
-import org.flowable.task.service.history.HistoricTaskInstance;
+import org.flowable.task.api.Task;
+import org.flowable.task.api.history.HistoricTaskLogEntry;
+import org.flowable.task.api.history.HistoricTaskInstance;
 import org.flowable.task.service.impl.persistence.entity.HistoricTaskInstanceEntity;
+import org.flowable.task.service.impl.persistence.entity.HistoricTaskLogEntryEntity;
 import org.flowable.task.service.impl.persistence.entity.TaskEntity;
-import org.flowable.variable.service.history.HistoricVariableInstance;
+import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.flowable.variable.service.impl.persistence.entity.HistoricVariableInstanceEntity;
 import org.flowable.variable.service.impl.persistence.entity.VariableInstanceEntity;
 import org.slf4j.Logger;
@@ -89,6 +96,7 @@ public class TableDataManagerImpl extends AbstractManager implements TableDataMa
         entityToTableNameMap.put(CompensateEventSubscriptionEntity.class, "ACT_RU_EVENT_SUBSCR");
         entityToTableNameMap.put(MessageEventSubscriptionEntity.class, "ACT_RU_EVENT_SUBSCR");
         entityToTableNameMap.put(SignalEventSubscriptionEntity.class, "ACT_RU_EVENT_SUBSCR");
+        entityToTableNameMap.put(ActivityInstanceEntity.class, "ACT_RU_ACTINST");
 
         // repository
         entityToTableNameMap.put(DeploymentEntity.class, "ACT_RE_DEPLOYMENT");
@@ -104,6 +112,7 @@ public class TableDataManagerImpl extends AbstractManager implements TableDataMa
         entityToTableNameMap.put(HistoricProcessInstanceEntity.class, "ACT_HI_PROCINST");
         entityToTableNameMap.put(HistoricVariableInstanceEntity.class, "ACT_HI_VARINST");
         entityToTableNameMap.put(HistoricTaskInstanceEntity.class, "ACT_HI_TASKINST");
+        entityToTableNameMap.put(HistoricTaskLogEntryEntity.class, "ACT_HI_TSK_LOG");
         entityToTableNameMap.put(HistoricIdentityLinkEntity.class, "ACT_HI_IDENTITYLINK");
 
         // a couple of stuff goes to the same table
@@ -135,6 +144,7 @@ public class TableDataManagerImpl extends AbstractManager implements TableDataMa
         apiTypeToTableNameMap.put(HistoricVariableUpdate.class, "ACT_HI_DETAIL");
         apiTypeToTableNameMap.put(HistoricFormProperty.class, "ACT_HI_DETAIL");
         apiTypeToTableNameMap.put(HistoricTaskInstance.class, "ACT_HI_TASKINST");
+        apiTypeToTableNameMap.put(HistoricTaskLogEntry.class, "ACT_HI_TSK_LOG");
         apiTypeToTableNameMap.put(HistoricVariableInstance.class, "ACT_HI_VARINST");
 
         // TODO: Identity skipped for the moment as no SQL injection is provided
@@ -162,45 +172,41 @@ public class TableDataManagerImpl extends AbstractManager implements TableDataMa
     @Override
     public List<String> getTablesPresentInDatabase() {
         List<String> tableNames = new ArrayList<>();
-        Connection connection = null;
         try {
-            connection = getDbSqlSession().getSqlSession().getConnection();
+            Connection connection = getDbSqlSession().getSqlSession().getConnection();
             DatabaseMetaData databaseMetaData = connection.getMetaData();
-            ResultSet tables = null;
-            try {
-                LOGGER.debug("retrieving flowable tables from jdbc metadata");
-                String databaseTablePrefix = getDbSqlSession().getDbSqlSessionFactory().getDatabaseTablePrefix();
-                String tableNameFilter = databaseTablePrefix + "ACT_%";
-                if ("postgres".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())) {
-                    tableNameFilter = databaseTablePrefix + "act_%";
-                }
+            LOGGER.debug("retrieving flowable tables from jdbc metadata");
+            String databaseTablePrefix = getDbSqlSession().getDbSqlSessionFactory().getDatabaseTablePrefix();
+            String tableNameFilter = databaseTablePrefix + "ACT_%";
+            if ("postgres".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())
+                    || "cockroachdb".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())) {
+                tableNameFilter = databaseTablePrefix + "act_%";
+            }
+            if ("oracle".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())) {
+                tableNameFilter = databaseTablePrefix + "ACT" + databaseMetaData.getSearchStringEscape() + "_%";
+            }
+
+            String catalog = null;
+            if (getProcessEngineConfiguration().getDatabaseCatalog() != null && getProcessEngineConfiguration().getDatabaseCatalog().length() > 0) {
+                catalog = getProcessEngineConfiguration().getDatabaseCatalog();
+            }
+
+            String schema = null;
+            if (getProcessEngineConfiguration().getDatabaseSchema() != null && getProcessEngineConfiguration().getDatabaseSchema().length() > 0) {
                 if ("oracle".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())) {
-                    tableNameFilter = databaseTablePrefix + "ACT" + databaseMetaData.getSearchStringEscape() + "_%";
+                    schema = getProcessEngineConfiguration().getDatabaseSchema().toUpperCase();
+                } else {
+                    schema = getProcessEngineConfiguration().getDatabaseSchema();
                 }
+            }
 
-                String catalog = null;
-                if (getProcessEngineConfiguration().getDatabaseCatalog() != null && getProcessEngineConfiguration().getDatabaseCatalog().length() > 0) {
-                    catalog = getProcessEngineConfiguration().getDatabaseCatalog();
-                }
-
-                String schema = null;
-                if (getProcessEngineConfiguration().getDatabaseSchema() != null && getProcessEngineConfiguration().getDatabaseSchema().length() > 0) {
-                    if ("oracle".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())) {
-                        schema = getProcessEngineConfiguration().getDatabaseSchema().toUpperCase();
-                    } else {
-                        schema = getProcessEngineConfiguration().getDatabaseSchema();
-                    }
-                }
-
-                tables = databaseMetaData.getTables(catalog, schema, tableNameFilter, DbSqlSession.JDBC_METADATA_TABLE_TYPES);
+            try (ResultSet tables = databaseMetaData.getTables(catalog, schema, tableNameFilter, DbSqlSession.JDBC_METADATA_TABLE_TYPES)) {
                 while (tables.next()) {
                     String tableName = tables.getString("TABLE_NAME");
                     tableName = tableName.toUpperCase();
                     tableNames.add(tableName);
-                    LOGGER.debug("  retrieved flowable table name {}", tableName);
+                    LOGGER.debug("retrieved flowable table name {}", tableName);
                 }
-            } finally {
-                tables.close();
             }
         } catch (Exception e) {
             throw new FlowableException("couldn't get flowable table names using metadata: " + e.getMessage(), e);
@@ -255,7 +261,8 @@ public class TableDataManagerImpl extends AbstractManager implements TableDataMa
             result.setTableName(tableName);
             DatabaseMetaData metaData = getDbSqlSession().getSqlSession().getConnection().getMetaData();
 
-            if ("postgres".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())) {
+            if ("postgres".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())
+                    || "cockroachdb".equals(getDbSqlSession().getDbSqlSessionFactory().getDatabaseType())) {
                 tableName = tableName.toLowerCase();
             }
 

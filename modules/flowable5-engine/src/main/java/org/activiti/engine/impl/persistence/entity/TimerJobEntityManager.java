@@ -23,8 +23,8 @@ import org.activiti.engine.impl.Page;
 import org.activiti.engine.impl.TimerJobQueryImpl;
 import org.activiti.engine.impl.context.Context;
 import org.activiti.engine.impl.persistence.AbstractManager;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.job.service.Job;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.job.api.Job;
 
 /**
  * @author Joram Barrez

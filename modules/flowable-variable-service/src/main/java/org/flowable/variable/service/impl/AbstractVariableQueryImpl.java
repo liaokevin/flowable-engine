@@ -16,12 +16,12 @@ package org.flowable.variable.service.impl;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.api.query.Query;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.query.AbstractQuery;
-import org.flowable.variable.service.impl.types.VariableTypes;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.query.Query;
+import org.flowable.common.engine.impl.query.AbstractQuery;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.variable.api.types.VariableTypes;
 import org.flowable.variable.service.impl.util.CommandContextUtil;
 
 /**
@@ -167,23 +167,42 @@ public abstract class AbstractVariableQueryImpl<T extends Query<?, ?>, U> extend
         addVariable(name, value.toLowerCase(), QueryOperator.LIKE_IGNORE_CASE, localScope);
         return (T) this;
     }
+    
+    public T variableExists(String name) {
+        return variableExists(name, true);
+    }
+    
+    @SuppressWarnings("unchecked")
+    protected T variableExists(String name, boolean localScope) {
+        addVariable(name, null, QueryOperator.EXISTS, localScope);
+        return (T) this;
+    }
+    
+    public T variableNotExists(String name) {
+        return variableNotExists(name, true);
+    }
+    
+    @SuppressWarnings("unchecked")
+    protected T variableNotExists(String name, boolean localScope) {
+        addVariable(name, null, QueryOperator.NOT_EXISTS, localScope);
+        return (T) this;
+    }
 
     protected void addVariable(String name, Object value, QueryOperator operator, boolean localScope) {
         if (name == null) {
             throw new FlowableIllegalArgumentException("name is null");
         }
         if (value == null || isBoolean(value)) {
-            // Null-values and booleans can only be used in EQUALS and
-            // NOT_EQUALS
+            // Null-values and booleans can only be used in EQUALS, NOT_EQUALS, EXISTS and NOT_EXISTS
             switch (operator) {
-            case GREATER_THAN:
-                throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'greater than' condition");
-            case LESS_THAN:
-                throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'less than' condition");
-            case GREATER_THAN_OR_EQUAL:
-                throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'greater than or equal' condition");
-            case LESS_THAN_OR_EQUAL:
-                throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'less than or equal' condition");
+                case GREATER_THAN:
+                    throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'greater than' condition");
+                case LESS_THAN:
+                    throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'less than' condition");
+                case GREATER_THAN_OR_EQUAL:
+                    throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'greater than or equal' condition");
+                case LESS_THAN_OR_EQUAL:
+                    throw new FlowableIllegalArgumentException("Booleans and null cannot be used in 'less than or equal' condition");
             }
 
             if (operator == QueryOperator.EQUALS_IGNORE_CASE && !(value instanceof String)) {
@@ -219,6 +238,15 @@ public abstract class AbstractVariableQueryImpl<T extends Query<?, ?>, U> extend
 
     public List<QueryVariableValue> getQueryVariableValues() {
         return queryVariableValues;
+    }
+    
+    public boolean hasValueComparisonQueryVariables() {
+        for (QueryVariableValue qvv : queryVariableValues) {
+            if (!QueryOperator.EXISTS.toString().equals(qvv.getOperator()) && !QueryOperator.NOT_EXISTS.toString().equals(qvv.getOperator())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean hasLocalQueryVariableValue() {

@@ -19,22 +19,25 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.interceptor.EngineConfigurationConstants;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.impl.interceptor.EngineConfigurationConstants;
 import org.flowable.job.service.JobServiceConfiguration;
 import org.flowable.job.service.impl.asyncexecutor.JobManager;
 import org.flowable.job.service.impl.persistence.entity.TimerJobEntityManager;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Tom Baeyens
  */
 public class JobExecutorTest extends JobExecutorTestCase {
 
+    @Test
     public void testBasicJobExecutorOperation() throws Exception {
         CommandExecutor commandExecutor = processEngineConfiguration.getCommandExecutor();
         commandExecutor.execute(new Command<Void>() {
+            @Override
             public Void execute(CommandContext commandContext) {
                 JobServiceConfiguration jobServiceConfiguration = (JobServiceConfiguration) processEngineConfiguration.getServiceConfigurations().get(EngineConfigurationConstants.KEY_JOB_SERVICE_CONFIG);
                 JobManager jobManager = jobServiceConfiguration.getJobManager();
@@ -55,7 +58,7 @@ public class JobExecutorTest extends JobExecutorTestCase {
         currentCal.add(Calendar.MINUTE, 1);
         processEngineConfiguration.getClock().setCurrentTime(currentCal.getTime());
 
-        waitForJobExecutorToProcessAllJobs(8000L, 200L);
+        waitForJobExecutorToProcessAllJobsAndExecutableTimerJobs(12500L, 200L);
 
         Set<String> messages = new HashSet<>(tweetHandler.getMessages());
         Set<String> expectedMessages = new HashSet<>();

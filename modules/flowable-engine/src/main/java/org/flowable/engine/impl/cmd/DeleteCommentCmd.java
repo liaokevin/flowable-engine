@@ -15,9 +15,9 @@ package org.flowable.engine.impl.cmd;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-import org.flowable.engine.common.api.FlowableObjectNotFoundException;
-import org.flowable.engine.common.impl.interceptor.Command;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.compatibility.Flowable5CompatibilityHandler;
 import org.flowable.engine.impl.persistence.entity.CommentEntity;
 import org.flowable.engine.impl.persistence.entity.CommentEntityManager;
@@ -25,7 +25,7 @@ import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.impl.util.Flowable5Util;
 import org.flowable.engine.task.Comment;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
 
 /**
  * @author Joram Barrez
@@ -43,6 +43,7 @@ public class DeleteCommentCmd implements Command<Void>, Serializable {
         this.commentId = commentId;
     }
 
+    @Override
     public Void execute(CommandContext commandContext) {
         CommentEntityManager commentManager = CommandContextUtil.getCommentEntityManager(commandContext);
 

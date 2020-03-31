@@ -16,107 +16,81 @@ package org.flowable.dmn.engine.impl.persistence.entity;
 import java.util.List;
 import java.util.Map;
 
+import org.flowable.common.engine.impl.persistence.entity.AbstractEngineEntityManager;
 import org.flowable.dmn.api.DmnDecisionTable;
 import org.flowable.dmn.engine.DmnEngineConfiguration;
 import org.flowable.dmn.engine.impl.DecisionTableQueryImpl;
 import org.flowable.dmn.engine.impl.persistence.entity.data.DecisionTableDataManager;
-import org.flowable.engine.common.impl.persistence.entity.data.DataManager;
 
 /**
  * @author Tijs Rademakers
  * @author Joram Barrez
  */
-public class DecisionTableEntityManagerImpl extends AbstractEntityManager<DecisionTableEntity> implements DecisionTableEntityManager {
+public class DecisionTableEntityManagerImpl
+    extends AbstractEngineEntityManager<DmnEngineConfiguration, DecisionTableEntity, DecisionTableDataManager>
+    implements DecisionTableEntityManager {
 
-    protected DecisionTableDataManager decisionTableDataManager;
-
-    public DecisionTableEntityManagerImpl(DmnEngineConfiguration processEngineConfiguration, DecisionTableDataManager decisionTableDataManager) {
-        super(processEngineConfiguration);
-        this.decisionTableDataManager = decisionTableDataManager;
-    }
-
-    @Override
-    protected DataManager<DecisionTableEntity> getDataManager() {
-        return decisionTableDataManager;
+    public DecisionTableEntityManagerImpl(DmnEngineConfiguration dmnEngineConfiguration, DecisionTableDataManager decisionTableDataManager) {
+        super(dmnEngineConfiguration, decisionTableDataManager);
     }
 
     @Override
     public DecisionTableEntity findLatestDecisionTableByKey(String decisionTableKey) {
-        return decisionTableDataManager.findLatestDecisionTableByKey(decisionTableKey);
+        return dataManager.findLatestDecisionTableByKey(decisionTableKey);
     }
 
     @Override
     public DecisionTableEntity findLatestDecisionTableByKeyAndTenantId(String decisionTableKey, String tenantId) {
-        return decisionTableDataManager.findLatestDecisionTableByKeyAndTenantId(decisionTableKey, tenantId);
+        return dataManager.findLatestDecisionTableByKeyAndTenantId(decisionTableKey, tenantId);
     }
 
     @Override
     public void deleteDecisionTablesByDeploymentId(String deploymentId) {
-        decisionTableDataManager.deleteDecisionTablesByDeploymentId(deploymentId);
-    }
-
-    @Override
-    public DecisionTableEntity findLatestDecisionTableByKeyAndParentDeploymentId(String decisionTableKey, String parentDeploymentId) {
-        return decisionTableDataManager.findLatestDecisionTableByKeyAndParentDeploymentId(decisionTableKey, parentDeploymentId);
-    }
-
-    @Override
-    public DecisionTableEntity findLatestDecisionTableByKeyParentDeploymentIdAndTenantId(String decisionTableKey,
-            String parentDeploymentId, String tenantId) {
-
-        return decisionTableDataManager.findLatestDecisionTableByKeyParentDeploymentIdAndTenantId(decisionTableKey, parentDeploymentId, tenantId);
+        dataManager.deleteDecisionTablesByDeploymentId(deploymentId);
     }
 
     @Override
     public List<DmnDecisionTable> findDecisionTablesByQueryCriteria(DecisionTableQueryImpl decisionTableQuery) {
-        return decisionTableDataManager.findDecisionTablesByQueryCriteria(decisionTableQuery);
+        return dataManager.findDecisionTablesByQueryCriteria(decisionTableQuery);
     }
 
     @Override
     public long findDecisionTableCountByQueryCriteria(DecisionTableQueryImpl decisionTableQuery) {
-        return decisionTableDataManager.findDecisionTableCountByQueryCriteria(decisionTableQuery);
+        return dataManager.findDecisionTableCountByQueryCriteria(decisionTableQuery);
     }
 
     @Override
     public DecisionTableEntity findDecisionTableByDeploymentAndKey(String deploymentId, String decisionTableKey) {
-        return decisionTableDataManager.findDecisionTableByDeploymentAndKey(deploymentId, decisionTableKey);
+        return dataManager.findDecisionTableByDeploymentAndKey(deploymentId, decisionTableKey);
     }
 
     @Override
     public DecisionTableEntity findDecisionTableByDeploymentAndKeyAndTenantId(String deploymentId, String decisionTableKey, String tenantId) {
-        return decisionTableDataManager.findDecisionTableByDeploymentAndKeyAndTenantId(deploymentId, decisionTableKey, tenantId);
+        return dataManager.findDecisionTableByDeploymentAndKeyAndTenantId(deploymentId, decisionTableKey, tenantId);
     }
 
     @Override
     public DecisionTableEntity findDecisionTableByKeyAndVersionAndTenantId(String decisionTableKey, Integer decisionTableVersion, String tenantId) {
         if (tenantId == null || DmnEngineConfiguration.NO_TENANT_ID.equals(tenantId)) {
-            return decisionTableDataManager.findDecisionTableByKeyAndVersion(decisionTableKey, decisionTableVersion);
+            return dataManager.findDecisionTableByKeyAndVersion(decisionTableKey, decisionTableVersion);
         } else {
-            return decisionTableDataManager.findDecisionTableByKeyAndVersionAndTenantId(decisionTableKey, decisionTableVersion, tenantId);
+            return dataManager.findDecisionTableByKeyAndVersionAndTenantId(decisionTableKey, decisionTableVersion, tenantId);
         }
     }
 
     @Override
     public List<DmnDecisionTable> findDecisionTablesByNativeQuery(Map<String, Object> parameterMap) {
-        return decisionTableDataManager.findDecisionTablesByNativeQuery(parameterMap);
+        return dataManager.findDecisionTablesByNativeQuery(parameterMap);
     }
 
     @Override
     public long findDecisionTableCountByNativeQuery(Map<String, Object> parameterMap) {
-        return decisionTableDataManager.findDecisionTableCountByNativeQuery(parameterMap);
+        return dataManager.findDecisionTableCountByNativeQuery(parameterMap);
     }
 
     @Override
     public void updateDecisionTableTenantIdForDeployment(String deploymentId, String newTenantId) {
-        decisionTableDataManager.updateDecisionTableTenantIdForDeployment(deploymentId, newTenantId);
-    }
-
-    public DecisionTableDataManager getDecisionTableDataManager() {
-        return decisionTableDataManager;
-    }
-
-    public void setDecisionTableDataManager(DecisionTableDataManager decisionTableDataManager) {
-        this.decisionTableDataManager = decisionTableDataManager;
+        dataManager.updateDecisionTableTenantIdForDeployment(deploymentId, newTenantId);
     }
 
 }

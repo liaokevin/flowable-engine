@@ -15,22 +15,26 @@ package org.flowable.engine.impl.bpmn.behavior;
 
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
 import org.flowable.bpmn.model.Signal;
 import org.flowable.bpmn.model.SignalEventDefinition;
 import org.flowable.bpmn.model.ThrowEvent;
-import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.common.impl.context.Context;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.scope.ScopeTypes;
+import org.flowable.common.engine.impl.context.Context;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.compatibility.Flowable5CompatibilityHandler;
 import org.flowable.engine.delegate.DelegateExecution;
-import org.flowable.variable.service.delegate.Expression;
 import org.flowable.engine.delegate.event.impl.FlowableEventBuilder;
-import org.flowable.engine.impl.persistence.entity.EventSubscriptionEntityManager;
+import org.flowable.engine.impl.event.EventDefinitionExpressionUtil;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
-import org.flowable.engine.impl.persistence.entity.SignalEventSubscriptionEntity;
 import org.flowable.engine.impl.util.CommandContextUtil;
+import org.flowable.engine.impl.util.EventSubscriptionUtil;
 import org.flowable.engine.impl.util.Flowable5Util;
+import org.flowable.engine.impl.util.ProcessDefinitionUtil;
+import org.flowable.entitylink.api.EntityLink;
+import org.flowable.entitylink.api.EntityLinkType;
+import org.flowable.eventsubscription.service.EventSubscriptionService;
+import org.flowable.eventsubscription.service.impl.persistence.entity.SignalEventSubscriptionEntity;
 
 /**
  * @author Tijs Rademakers
@@ -39,45 +43,53 @@ public class IntermediateThrowSignalEventActivityBehavior extends AbstractBpmnAc
 
     private static final long serialVersionUID = 1L;
 
-    protected final SignalEventDefinition signalEventDefinition;
-    protected String signalEventName;
-    protected String signalExpression;
+    protected SignalEventDefinition signalEventDefinition;
     protected boolean processInstanceScope;
 
     public IntermediateThrowSignalEventActivityBehavior(ThrowEvent throwEvent, SignalEventDefinition signalEventDefinition, Signal signal) {
         if (signal != null) {
-            signalEventName = signal.getName();
             if (Signal.SCOPE_PROCESS_INSTANCE.equals(signal.getScope())) {
                 this.processInstanceScope = true;
             }
-        } else if (StringUtils.isNotEmpty(signalEventDefinition.getSignalRef())) {
-            signalEventName = signalEventDefinition.getSignalRef();
-        } else {
-            signalExpression = signalEventDefinition.getSignalExpression();
         }
 
         this.signalEventDefinition = signalEventDefinition;
     }
 
+    @Override
     public void execute(DelegateExecution execution) {
 
         CommandContext commandContext = Context.getCommandContext();
 
-        String eventSubscriptionName = null;
-        if (signalEventName != null) {
-            eventSubscriptionName = signalEventName;
-        } else {
-            Expression expressionObject = CommandContextUtil.getProcessEngineConfiguration(commandContext).getExpressionManager().createExpression(signalExpression);
-            eventSubscriptionName = expressionObject.getValue(execution).toString();
-        }
+        String eventSubscriptionName = EventDefinitionExpressionUtil.determineSignalName(commandContext, signalEventDefinition,
+            ProcessDefinitionUtil.getBpmnModel(execution.getProcessDefinitionId()), execution);
 
-        EventSubscriptionEntityManager eventSubscriptionEntityManager = CommandContextUtil.getEventSubscriptionEntityManager(commandContext);
+
+        EventSubscriptionService eventSubscriptionService = CommandContextUtil.getEventSubscriptionService(commandContext);
         List<SignalEventSubscriptionEntity> subscriptionEntities = null;
         if (processInstanceScope) {
-            subscriptionEntities = eventSubscriptionEntityManager
-                    .findSignalEventSubscriptionsByProcessInstanceAndEventName(execution.getProcessInstanceId(), eventSubscriptionName);
+            subscriptionEntities = eventSubscriptionService.findSignalEventSubscriptionsByProcessInstanceAndEventName(
+                            execution.getProcessInstanceId(), eventSubscriptionName);
+            
+            if (CommandContextUtil.getProcessEngineConfiguration(commandContext).isEnableEntityLinks()) {
+                List<EntityLink> entityLinks = CommandContextUtil.getEntityLinkService(commandContext).findEntityLinksByReferenceScopeIdAndType(
+                                execution.getProcessInstanceId(), ScopeTypes.BPMN, EntityLinkType.CHILD);
+                if (entityLinks != null) {
+                    for (EntityLink entityLink : entityLinks) {
+                        if (ScopeTypes.BPMN.equals(entityLink.getScopeType())) {
+                            subscriptionEntities.addAll(eventSubscriptionService.findSignalEventSubscriptionsByProcessInstanceAndEventName(
+                                            entityLink.getScopeId(), eventSubscriptionName));
+                            
+                        } else if (ScopeTypes.CMMN.equals(entityLink.getScopeType())) {
+                            subscriptionEntities.addAll(eventSubscriptionService.findSignalEventSubscriptionsByScopeAndEventName(
+                                            entityLink.getScopeId(), ScopeTypes.CMMN, eventSubscriptionName));
+                        }
+                    }
+                }
+            }
+            
         } else {
-            subscriptionEntities = eventSubscriptionEntityManager
+            subscriptionEntities = eventSubscriptionService
                     .findSignalEventSubscriptionsByEventName(eventSubscriptionName, execution.getTenantId());
         }
 
@@ -92,7 +104,7 @@ public class IntermediateThrowSignalEventActivityBehavior extends AbstractBpmnAc
                 compatibilityHandler.signalEventReceived(signalEventSubscriptionEntity, null, signalEventDefinition.isAsync());
                 
             } else {
-                eventSubscriptionEntityManager.eventReceived(signalEventSubscriptionEntity, null, signalEventDefinition.isAsync());
+                EventSubscriptionUtil.eventReceived(signalEventSubscriptionEntity, null, signalEventDefinition.isAsync());
             }
         }
 

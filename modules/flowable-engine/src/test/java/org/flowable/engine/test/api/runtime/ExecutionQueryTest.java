@@ -10,23 +10,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/* Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.flowable.engine.test.api.runtime;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -38,20 +30,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ExecutionQuery;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * @author Joram Barrez
  * @author Frederik Heremans
+ * @author Filip Hrisafov
  */
 public class ExecutionQueryTest extends PluggableFlowableTestCase {
 
@@ -65,8 +61,8 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
     private List<String> concurrentProcessInstanceIds;
     private List<String> sequentialProcessInstanceIds;
 
+    @BeforeEach
     protected void setUp() throws Exception {
-        super.setUp();
         repositoryService.createDeployment().addClasspathResource("org/flowable/engine/test/api/runtime/oneTaskProcess.bpmn20.xml")
                 .addClasspathResource("org/flowable/engine/test/api/runtime/concurrentExecution.bpmn20.xml").deploy();
 
@@ -79,19 +75,21 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         sequentialProcessInstanceIds.add(runtimeService.startProcessInstanceByKey(SEQUENTIAL_PROCESS_KEY).getId());
     }
 
+    @AfterEach
     protected void tearDown() throws Exception {
         for (org.flowable.engine.repository.Deployment deployment : repositoryService.createDeploymentQuery().list()) {
             repositoryService.deleteDeployment(deployment.getId(), true);
         }
-        super.tearDown();
     }
 
+    @Test
     public void testQueryByProcessDefinitionKey() {
         // Concurrent process with 3 executions for each process instance
         assertEquals(12, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).list().size());
         assertEquals(2, runtimeService.createExecutionQuery().processDefinitionKey(SEQUENTIAL_PROCESS_KEY).list().size());
     }
 
+    @Test
     public void testQueryByProcessDefinitionKeyIn() {
         Set<String> includeIds = new HashSet<>();
         assertEquals(14, runtimeService.createExecutionQuery().processDefinitionKeys(includeIds).list().size());
@@ -107,6 +105,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(0, runtimeService.createExecutionQuery().processDefinitionKeys(includeIds).list().size());
     }
 
+    @Test
     public void testQueryByInvalidProcessDefinitionKey() {
         ExecutionQuery query = runtimeService.createExecutionQuery().processDefinitionKey("invalid");
         assertNull(query.singleResult());
@@ -114,12 +113,14 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(0, query.count());
     }
 
+    @Test
     public void testQueryByProcessDefinitionCategory() {
         // Concurrent process with 3 executions for each process instance
         assertEquals(12, runtimeService.createExecutionQuery().processDefinitionCategory(CONCURRENT_PROCESS_CATEGORY).list().size());
         assertEquals(2, runtimeService.createExecutionQuery().processDefinitionCategory(SEQUENTIAL_PROCESS_CATEGORY).list().size());
     }
 
+    @Test
     public void testQueryByInvalidProcessDefinitionCategory() {
         ExecutionQuery query = runtimeService.createExecutionQuery().processDefinitionCategory("invalid");
         assertNull(query.singleResult());
@@ -127,12 +128,14 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(0, query.count());
     }
 
+    @Test
     public void testQueryByProcessDefinitionName() {
         // Concurrent process with 3 executions for each process instance
         assertEquals(12, runtimeService.createExecutionQuery().processDefinitionName(CONCURRENT_PROCESS_NAME).list().size());
         assertEquals(2, runtimeService.createExecutionQuery().processDefinitionName(SEQUENTIAL_PROCESS_NAME).list().size());
     }
 
+    @Test
     public void testQueryByInvalidProcessDefinitionName() {
         ExecutionQuery query = runtimeService.createExecutionQuery().processDefinitionName("invalid");
         assertNull(query.singleResult());
@@ -140,6 +143,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(0, query.count());
     }
 
+    @Test
     public void testQueryByProcessInstanceId() {
         for (String processInstanceId : concurrentProcessInstanceIds) {
             ExecutionQuery query = runtimeService.createExecutionQuery().processInstanceId(processInstanceId);
@@ -149,6 +153,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(2, runtimeService.createExecutionQuery().processInstanceId(sequentialProcessInstanceIds.get(0)).list().size());
     }
 
+    @Test
     public void testQueryByRootProcessInstanceId() {
         for (String processInstanceId : concurrentProcessInstanceIds) {
             ExecutionQuery query = runtimeService.createExecutionQuery().rootProcessInstanceId(processInstanceId);
@@ -158,6 +163,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(2, runtimeService.createExecutionQuery().rootProcessInstanceId(sequentialProcessInstanceIds.get(0)).list().size());
     }
 
+    @Test
     public void testQueryByParentId() {
         // Concurrent processes fork into 2 child-executions. Should be found
         // when parentId is used
@@ -168,6 +174,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByInvalidProcessInstanceId() {
         ExecutionQuery query = runtimeService.createExecutionQuery().processInstanceId("invalid");
         assertNull(query.singleResult());
@@ -175,11 +182,13 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(0, query.count());
     }
 
+    @Test
     public void testQueryExecutionId() {
         List<Execution> executions = runtimeService.createExecutionQuery().processDefinitionKey(SEQUENTIAL_PROCESS_KEY).list();
         assertEquals(2, executions.size());
     }
 
+    @Test
     public void testQueryByInvalidExecutionId() {
         ExecutionQuery query = runtimeService.createExecutionQuery().executionId("invalid");
         assertNull(query.singleResult());
@@ -187,6 +196,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(0, query.count());
     }
 
+    @Test
     public void testQueryByActivityId() {
         ExecutionQuery query = runtimeService.createExecutionQuery().activityId("receivePayment");
         assertEquals(4, query.list().size());
@@ -199,6 +209,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByInvalidActivityId() {
         ExecutionQuery query = runtimeService.createExecutionQuery().activityId("invalid");
         assertNull(query.singleResult());
@@ -209,6 +220,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
     /**
      * Validate fix for ACT-1896
      */
+    @Test
     public void testQueryByActivityIdAndBusinessKeyWithChildren() {
         ExecutionQuery query = runtimeService.createExecutionQuery().activityId("receivePayment").processInstanceBusinessKey("BUSINESS-KEY-1", true);
         assertEquals(1, query.list().size());
@@ -219,6 +231,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals("receivePayment", execution.getActivityId());
     }
 
+    @Test
     public void testQueryPaging() {
         assertEquals(14, runtimeService.createExecutionQuery().count());
         assertEquals(4, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).listPage(0, 4).size());
@@ -227,6 +240,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(12, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).listPage(0, 20).size());
     }
 
+    @Test
     public void testQuerySorting() {
 
         // 13 executions: 3 for each concurrent, 1 for the sequential
@@ -244,6 +258,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(12, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).orderByProcessDefinitionKey().asc().orderByProcessInstanceId().desc().list().size());
     }
 
+    @Test
     public void testQueryInvalidSorting() {
         try {
             runtimeService.createExecutionQuery().orderByProcessDefinitionKey().list();
@@ -253,18 +268,21 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testQueryByBusinessKey() {
         assertEquals(1, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).processInstanceBusinessKey("BUSINESS-KEY-1").list().size());
         assertEquals(1, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).processInstanceBusinessKey("BUSINESS-KEY-2").list().size());
         assertEquals(0, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).processInstanceBusinessKey("NON-EXISTING").list().size());
     }
 
+    @Test
     public void testQueryByBusinessKeyIncludingChildExecutions() {
         assertEquals(3, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).processInstanceBusinessKey("BUSINESS-KEY-1", true).list().size());
         assertEquals(3, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).processInstanceBusinessKey("BUSINESS-KEY-2", true).list().size());
         assertEquals(0, runtimeService.createExecutionQuery().processDefinitionKey(CONCURRENT_PROCESS_KEY).processInstanceBusinessKey("NON-EXISTING", true).list().size());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryStringVariable() {
         Map<String, Object> vars = new HashMap<>();
@@ -367,6 +385,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance3.getId(), "test");
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryEqualsIgnoreCase() {
         Map<String, Object> vars = new HashMap<>();
@@ -436,6 +455,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryLike() {
         Map<String, Object> vars = new HashMap<>();
@@ -469,6 +489,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryLikeIgnoreCase() {
         Map<String, Object> vars = new HashMap<>();
@@ -511,6 +532,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = {
             "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryLongVariable() {
@@ -605,6 +627,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance3.getId(), "test");
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryDoubleVariable() {
         Map<String, Object> vars = new HashMap<>();
@@ -698,6 +721,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance3.getId(), "test");
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryIntegerVariable() {
         Map<String, Object> vars = new HashMap<>();
@@ -791,6 +815,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance3.getId(), "test");
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryShortVariable() {
         Map<String, Object> vars = new HashMap<>();
@@ -887,6 +912,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance3.getId(), "test");
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryDateVariable() throws Exception {
         Map<String, Object> vars = new HashMap<>();
@@ -998,6 +1024,307 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance3.getId(), "test");
     }
 
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
+    public void testQueryInstantVariable() throws Exception {
+        Map<String, Object> vars = new HashMap<>();
+        Instant instant1 = Instant.now();
+        vars.put("instantVar", instant1);
+
+        ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        Instant instant2 = instant1.plusSeconds(1);
+        vars = new HashMap<>();
+        vars.put("instantVar", instant1);
+        vars.put("instantVar2", instant2);
+        ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        Instant nextYear = instant1.plus(365, ChronoUnit.DAYS);
+        vars = new HashMap<>();
+        vars.put("instantVar", nextYear);
+        ProcessInstance processInstance3 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        Instant nextMonth = instant1.plus(30, ChronoUnit.DAYS);
+
+        Instant twoYearsLater = instant1.plus(730, ChronoUnit.DAYS);
+
+        Instant oneYearAgo = instant1.minus(365, ChronoUnit.DAYS);
+
+        // Query on single instant variable, should result in 2 matches
+        ExecutionQuery query = runtimeService.createExecutionQuery().variableValueEquals("instantVar", instant1);
+        List<Execution> executions = query.list();
+        assertThat(executions).hasSize(2);
+
+        // Query on two instant variables, should result in single value
+        query = runtimeService.createExecutionQuery().variableValueEquals("instantVar", instant1).variableValueEquals("instantVar2", instant2);
+        Execution execution = query.singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance2.getId());
+
+        // Query with unexisting variable value
+        execution = runtimeService.createExecutionQuery().variableValueEquals("instantVar", instant1.minus(1, ChronoUnit.HOURS)).singleResult();
+        assertThat(execution).isNull();
+
+        // Test NOT_EQUALS
+        execution = runtimeService.createExecutionQuery().variableValueNotEquals("instantVar", instant1).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        // Test GREATER_THAN
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThan("instantVar", nextMonth).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThan("instantVar", nextYear).count()).isEqualTo(0);
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThan("instantVar", oneYearAgo).count()).isEqualTo(3);
+
+        // Test GREATER_THAN_OR_EQUAL
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("instantVar", nextMonth).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("instantVar", nextYear).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("instantVar", oneYearAgo).count()).isEqualTo(3);
+
+        // Test LESS_THAN
+        executions = runtimeService.createExecutionQuery().variableValueLessThan("instantVar", nextYear).list();
+        assertThat(executions)
+            .extracting(Execution::getId)
+            .containsExactlyInAnyOrder(
+                processInstance1.getId(),
+                processInstance2.getId()
+            );
+
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThan("instantVar", instant1).count()).isEqualTo(0);
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThan("instantVar", twoYearsLater).count()).isEqualTo(3);
+
+        // Test LESS_THAN_OR_EQUAL
+        executions = runtimeService.createExecutionQuery().variableValueLessThanOrEqual("instantVar", nextYear).list();
+        assertThat(executions).hasSize(3);
+
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThanOrEqual("instantVar", oneYearAgo).count()).isEqualTo(0);
+
+        // Test value-only matching
+        execution = runtimeService.createExecutionQuery().variableValueEquals(nextYear).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        executions = runtimeService.createExecutionQuery().variableValueEquals(instant1).list();
+        assertThat(executions)
+            .extracting(Execution::getId)
+            .containsExactlyInAnyOrder(
+                processInstance1.getId(),
+                processInstance2.getId()
+            );
+
+        execution = runtimeService.createExecutionQuery().variableValueEquals(twoYearsLater).singleResult();
+        assertThat(execution).isNull();
+    }
+
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
+    public void testQueryLocalDateVariable() throws Exception {
+        Map<String, Object> vars = new HashMap<>();
+        LocalDate localDate = LocalDate.now();
+        vars.put("localDateVar", localDate);
+
+        ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        LocalDate localDate2 = localDate.plusDays(1);
+        vars = new HashMap<>();
+        vars.put("localDateVar", localDate);
+        vars.put("localDateVar2", localDate2);
+        ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        LocalDate nextYear = localDate.plusYears(1);
+        vars = new HashMap<>();
+        vars.put("localDateVar", nextYear);
+        ProcessInstance processInstance3 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        LocalDate nextMonth = localDate.plusMonths(1);
+
+        LocalDate twoYearsLater = localDate.plusYears(2);
+
+        LocalDate oneYearAgo = localDate.minusYears(1);
+
+        // Query on single localDate variable, should result in 2 matches
+        ExecutionQuery query = runtimeService.createExecutionQuery().variableValueEquals("localDateVar", localDate);
+        List<Execution> executions = query.list();
+        assertThat(executions).hasSize(2);
+
+        // Query on two localDate variables, should result in single value
+        query = runtimeService.createExecutionQuery().variableValueEquals("localDateVar", localDate).variableValueEquals("localDateVar2", localDate2);
+        Execution execution = query.singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance2.getId());
+
+        // Query with unexisting variable value
+        execution = runtimeService.createExecutionQuery().variableValueEquals("localDateVar", localDate.minusDays(1)).singleResult();
+        assertThat(execution).isNull();
+
+        // Test NOT_EQUALS
+        execution = runtimeService.createExecutionQuery().variableValueNotEquals("localDateVar", localDate).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        // Test GREATER_THAN
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThan("localDateVar", nextMonth).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThan("localDateVar", nextYear).count()).isEqualTo(0);
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThan("localDateVar", oneYearAgo).count()).isEqualTo(3);
+
+        // Test GREATER_THAN_OR_EQUAL
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("localDateVar", nextMonth).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("localDateVar", nextYear).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("localDateVar", oneYearAgo).count()).isEqualTo(3);
+
+        // Test LESS_THAN
+        executions = runtimeService.createExecutionQuery().variableValueLessThan("localDateVar", nextYear).list();
+        assertThat(executions)
+            .extracting(Execution::getId)
+            .containsExactlyInAnyOrder(
+                processInstance1.getId(),
+                processInstance2.getId()
+            );
+
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThan("localDateVar", localDate).count()).isEqualTo(0);
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThan("localDateVar", twoYearsLater).count()).isEqualTo(3);
+
+        // Test LESS_THAN_OR_EQUAL
+        executions = runtimeService.createExecutionQuery().variableValueLessThanOrEqual("localDateVar", nextYear).list();
+        assertThat(executions).hasSize(3);
+
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThanOrEqual("localDateVar", oneYearAgo).count()).isEqualTo(0);
+
+        // Test value-only matching
+        execution = runtimeService.createExecutionQuery().variableValueEquals(nextYear).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        executions = runtimeService.createExecutionQuery().variableValueEquals(localDate).list();
+        assertThat(executions)
+            .extracting(Execution::getId)
+            .containsExactlyInAnyOrder(
+                processInstance1.getId(),
+                processInstance2.getId()
+            );
+
+        execution = runtimeService.createExecutionQuery().variableValueEquals(twoYearsLater).singleResult();
+        assertThat(execution).isNull();
+    }
+
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
+    public void testQueryLocalDateTimeVariable() throws Exception {
+        Map<String, Object> vars = new HashMap<>();
+        LocalDateTime localDateTime = LocalDateTime.now();
+        vars.put("localDateTimeVar", localDateTime);
+
+        ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        LocalDateTime localDateTime2 = localDateTime.plusDays(1);
+        vars = new HashMap<>();
+        vars.put("localDateTimeVar", localDateTime);
+        vars.put("localDateTimeVar2", localDateTime2);
+        ProcessInstance processInstance2 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        LocalDateTime nextYear = localDateTime.plusYears(1);
+        vars = new HashMap<>();
+        vars.put("localDateTimeVar", nextYear);
+        ProcessInstance processInstance3 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
+
+        LocalDateTime nextMonth = localDateTime.plusMonths(1);
+
+        LocalDateTime twoYearsLater = localDateTime.plusYears(2);
+
+        LocalDateTime oneYearAgo = localDateTime.minusYears(1);
+
+        // Query on single localDateTime variable, should result in 2 matches
+        ExecutionQuery query = runtimeService.createExecutionQuery().variableValueEquals("localDateTimeVar", localDateTime);
+        List<Execution> executions = query.list();
+        assertThat(executions).hasSize(2);
+
+        // Query on two localDateTime variables, should result in single value
+        query = runtimeService.createExecutionQuery().variableValueEquals("localDateTimeVar", localDateTime).variableValueEquals("localDateTimeVar2", localDateTime2);
+        Execution execution = query.singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance2.getId());
+
+        // Query with unexisting variable value
+        execution = runtimeService.createExecutionQuery().variableValueEquals("localDateTimeVar", localDateTime.minusDays(1)).singleResult();
+        assertThat(execution).isNull();
+
+        // Test NOT_EQUALS
+        execution = runtimeService.createExecutionQuery().variableValueNotEquals("localDateTimeVar", localDateTime).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        // Test GREATER_THAN
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThan("localDateTimeVar", nextMonth).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThan("localDateTimeVar", nextYear).count()).isEqualTo(0);
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThan("localDateTimeVar", oneYearAgo).count()).isEqualTo(3);
+
+        // Test GREATER_THAN_OR_EQUAL
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("localDateTimeVar", nextMonth).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        execution = runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("localDateTimeVar", nextYear).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        assertThat(runtimeService.createExecutionQuery().variableValueGreaterThanOrEqual("localDateTimeVar", oneYearAgo).count()).isEqualTo(3);
+
+        // Test LESS_THAN
+        executions = runtimeService.createExecutionQuery().variableValueLessThan("localDateTimeVar", nextYear).list();
+        assertThat(executions)
+            .extracting(Execution::getId)
+            .containsExactlyInAnyOrder(
+                processInstance1.getId(),
+                processInstance2.getId()
+            );
+
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThan("localDateTimeVar", localDateTime).count()).isEqualTo(0);
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThan("localDateTimeVar", twoYearsLater).count()).isEqualTo(3);
+
+        // Test LESS_THAN_OR_EQUAL
+        executions = runtimeService.createExecutionQuery().variableValueLessThanOrEqual("localDateTimeVar", nextYear).list();
+        assertThat(executions).hasSize(3);
+
+        assertThat(runtimeService.createExecutionQuery().variableValueLessThanOrEqual("localDateTimeVar", oneYearAgo).count()).isEqualTo(0);
+
+        // Test value-only matching
+        execution = runtimeService.createExecutionQuery().variableValueEquals(nextYear).singleResult();
+        assertThat(execution).isNotNull();
+        assertThat(execution.getId()).isEqualTo(processInstance3.getId());
+
+        executions = runtimeService.createExecutionQuery().variableValueEquals(localDateTime).list();
+        assertThat(executions)
+            .extracting(Execution::getId)
+            .containsExactlyInAnyOrder(
+                processInstance1.getId(),
+                processInstance2.getId()
+            );
+
+        execution = runtimeService.createExecutionQuery().variableValueEquals(twoYearsLater).singleResult();
+        assertThat(execution).isNull();
+    }
+
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testBooleanVariable() throws Exception {
 
@@ -1073,6 +1400,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance2.getId(), "test");
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryVariablesUpdatedToNullValue() {
         // Start process instance with different types of variables
@@ -1110,6 +1438,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertNull(notQuery.singleResult());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryNullVariable() throws Exception {
         Map<String, Object> vars = new HashMap<>();
@@ -1199,6 +1528,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertNull(execution);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryInvalidTypes() throws Exception {
         Map<String, Object> vars = new HashMap<>();
@@ -1224,6 +1554,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance.getId(), "test");
     }
 
+    @Test
     public void testQueryVariablesNullNameArgument() {
         try {
             runtimeService.createExecutionQuery().variableValueEquals(null, "value");
@@ -1269,6 +1600,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryAllVariableTypes() throws Exception {
         Map<String, Object> vars = new HashMap<>();
@@ -1293,6 +1625,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance.getId(), "test");
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testClashingValues() throws Exception {
         Map<String, Object> vars = new HashMap<>();
@@ -1313,7 +1646,63 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         runtimeService.deleteProcessInstance(processInstance.getId(), "test");
         runtimeService.deleteProcessInstance(processInstance2.getId(), "test");
     }
+    
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
+    public void testVariableExistsQuery() {
+        Map<String, Object> vars = new HashMap<>();
+        vars.put("mixed", "AbCdEfG");
+        vars.put("upper", "ABCDEFG");
+        vars.put("lower", "abcdefg");
+        ProcessInstance processInstance1 = runtimeService.startProcessInstanceByKey("oneTaskProcess", vars);
 
+        Execution execution = runtimeService.createExecutionQuery().variableExists("mixed").singleResult();
+        assertNotNull(execution);
+        assertEquals(processInstance1.getId(), execution.getProcessInstanceId());
+        
+        runtimeService.setVariableLocal(execution.getId(), "localvar", "test");
+
+        List<Execution> executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).processVariableNotExists("lower").list();
+        assertEquals(0, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).processVariableExists("lower")
+                        .processVariableValueEquals("upper", "ABCDEFG").list();
+        assertEquals(2, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).or().processVariableExists("mixed")
+                        .processVariableValueEquals("upper", "ABCDEFG").endOr().list();
+        assertEquals(2, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).or().processVariableNotExists("mixed")
+                        .processVariableValueEquals("upper", "ABCDEFG").endOr().list();
+        assertEquals(2, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).or().processVariableNotExists("mixed").endOr().or()
+                        .processVariableValueEquals("upper", "ABCDEFG").endOr().list();
+        assertEquals(0, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).variableExists("localvar")
+                        .processVariableValueEquals("upper", "ABCDEFG").list();
+        assertEquals(1, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).or().variableExists("mixed")
+                        .processVariableValueEquals("upper", "ABCDEFG").endOr().list();
+        assertEquals(2, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).or().variableNotExists("mixed")
+                        .processVariableValueEquals("upper", "ABCDEFG").endOr().list();
+        assertEquals(2, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).or().variableNotExists("mixed").endOr().or()
+                        .variableValueEquals("upper", "ABCDEFG").endOr().list();
+        assertEquals(2, executions.size());
+        
+        executions = runtimeService.createExecutionQuery().processInstanceId(processInstance1.getId()).or().variableExists("mixed").endOr().or()
+                        .variableValueEquals("upper", "ABCDEFG").endOr().list();
+        assertEquals(0, executions.size());
+    }
+
+    @Test
     @Deployment
     public void testQueryBySignalSubscriptionName() {
         runtimeService.startProcessInstanceByKey("catchSignal");
@@ -1331,6 +1720,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(2, runtimeService.createExecutionQuery().signalEventSubscriptionName("alert").count());
     }
 
+    @Test
     @Deployment
     public void testQueryBySignalSubscriptionNameBoundary() {
         runtimeService.startProcessInstanceByKey("signalProces");
@@ -1348,10 +1738,11 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(2, runtimeService.createExecutionQuery().signalEventSubscriptionName("Test signal").count());
     }
 
+    @Test
     public void testNativeQuery() {
         // just test that the query will be constructed and executed, details
         // are tested in the TaskQueryTest
-        assertEquals("ACT_RU_EXECUTION", managementService.getTableName(Execution.class));
+        assertEquals("ACT_RU_EXECUTION", managementService.getTableName(Execution.class, false));
 
         long executionCount = runtimeService.createExecutionQuery().count();
 
@@ -1359,11 +1750,13 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(executionCount, runtimeService.createNativeExecutionQuery().sql("SELECT count(*) FROM " + managementService.getTableName(Execution.class)).count());
     }
 
+    @Test
     public void testNativeQueryPaging() {
         assertEquals(5, runtimeService.createNativeExecutionQuery().sql("SELECT * FROM " + managementService.getTableName(Execution.class)).listPage(1, 5).size());
         assertEquals(1, runtimeService.createNativeExecutionQuery().sql("SELECT * FROM " + managementService.getTableName(Execution.class)).listPage(2, 1).size());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/runtime/concurrentExecution.bpmn20.xml" })
     public void testExecutionQueryWithProcessVariable() {
         Map<String, Object> variables = new HashMap<>();
@@ -1403,6 +1796,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
 
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/runtime/executionLocalization.bpmn20.xml" })
     public void testLocalizeExecution() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("executionLocalization");
@@ -1600,6 +1994,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals("SubProcess Description 'en-US'", execution.getDescription());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryStartedBefore() throws Exception {
         Calendar calendar = new GregorianCalendar();
@@ -1624,6 +2019,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(2, executions.size());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryStartedAfter() throws Exception {
         Calendar calendar = new GregorianCalendar();
@@ -1648,6 +2044,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(2, executions.size());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testQueryStartedBy() throws Exception {
         final String authenticatedUser = "user1";
@@ -1659,6 +2056,7 @@ public class ExecutionQueryTest extends PluggableFlowableTestCase {
         assertEquals(1, executions.size());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/runtime/multipleSubProcess.bpmn20.xml",
             "org/flowable/engine/test/api/runtime/subProcess.bpmn20.xml" })
     public void testOnlySubProcessExecutions() throws Exception {

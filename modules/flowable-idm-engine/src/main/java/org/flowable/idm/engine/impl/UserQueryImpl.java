@@ -1,9 +1,9 @@
 /* Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,19 +15,21 @@ package org.flowable.idm.engine.impl;
 
 import java.util.List;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.interceptor.CommandContext;
-import org.flowable.engine.common.impl.interceptor.CommandExecutor;
-import org.flowable.engine.common.impl.query.AbstractQuery;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.query.CacheAwareQuery;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandExecutor;
+import org.flowable.common.engine.impl.query.AbstractQuery;
 import org.flowable.idm.api.User;
 import org.flowable.idm.api.UserQuery;
 import org.flowable.idm.api.UserQueryProperty;
+import org.flowable.idm.engine.impl.persistence.entity.UserEntity;
 import org.flowable.idm.engine.impl.util.CommandContextUtil;
 
 /**
  * @author Joram Barrez
  */
-public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements UserQuery {
+public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements UserQuery, CacheAwareQuery<UserEntity> {
 
     private static final long serialVersionUID = 1L;
     protected String id;
@@ -41,10 +43,14 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
     protected String lastNameLikeIgnoreCase;
     protected String fullNameLike;
     protected String fullNameLikeIgnoreCase;
+    protected String displayName;
+    protected String displayNameLike;
+    protected String displayNameLikeIgnoreCase;
     protected String email;
     protected String emailLike;
     protected String groupId;
     protected List<String> groupIds;
+    protected String tenantId;
 
     public UserQueryImpl() {
     }
@@ -57,6 +63,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         super(commandExecutor);
     }
 
+    @Override
     public UserQuery userId(String id) {
         if (id == null) {
             throw new FlowableIllegalArgumentException("Provided id is null");
@@ -65,6 +72,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userIds(List<String> ids) {
         if (ids == null) {
             throw new FlowableIllegalArgumentException("Provided ids is null");
@@ -73,6 +81,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userIdIgnoreCase(String id) {
         if (id == null) {
             throw new FlowableIllegalArgumentException("Provided id is null");
@@ -81,6 +90,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userFirstName(String firstName) {
         if (firstName == null) {
             throw new FlowableIllegalArgumentException("Provided first name is null");
@@ -89,6 +99,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userFirstNameLike(String firstNameLike) {
         if (firstNameLike == null) {
             throw new FlowableIllegalArgumentException("Provided first name is null");
@@ -97,6 +108,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userFirstNameLikeIgnoreCase(String firstNameLikeIgnoreCase) {
         if (firstNameLikeIgnoreCase == null) {
             throw new FlowableIllegalArgumentException("Provided first name is null");
@@ -105,6 +117,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userLastName(String lastName) {
         if (lastName == null) {
             throw new FlowableIllegalArgumentException("Provided last name is null");
@@ -113,6 +126,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userLastNameLike(String lastNameLike) {
         if (lastNameLike == null) {
             throw new FlowableIllegalArgumentException("Provided last name is null");
@@ -121,6 +135,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userLastNameLikeIgnoreCase(String lastNameLikeIgnoreCase) {
         if (lastNameLikeIgnoreCase == null) {
             throw new FlowableIllegalArgumentException("Provided last name is null");
@@ -129,6 +144,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userFullNameLike(String fullNameLike) {
         if (fullNameLike == null) {
             throw new FlowableIllegalArgumentException("Provided full name is null");
@@ -137,6 +153,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userFullNameLikeIgnoreCase(String fullNameLikeIgnoreCase) {
         if (fullNameLikeIgnoreCase == null) {
             throw new FlowableIllegalArgumentException("Provided full name is null");
@@ -144,7 +161,35 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         this.fullNameLikeIgnoreCase = fullNameLikeIgnoreCase.toLowerCase();
         return this;
     }
+    
+    @Override
+    public UserQuery userDisplayName(String displayName) {
+        if (displayName == null) {
+            throw new FlowableIllegalArgumentException("Provided display name is null");
+        }
+        this.displayName = displayName;
+        return this;
+    }
 
+    @Override
+    public UserQuery userDisplayNameLike(String displayNameLike) {
+        if (displayNameLike == null) {
+            throw new FlowableIllegalArgumentException("Provided display name is null");
+        }
+        this.displayNameLike = displayNameLike;
+        return this;
+    }
+
+    @Override
+    public UserQuery userDisplayNameLikeIgnoreCase(String displayNameLikeIgnoreCase) {
+        if (displayNameLikeIgnoreCase == null) {
+            throw new FlowableIllegalArgumentException("Provided display name is null");
+        }
+        this.displayNameLikeIgnoreCase = displayNameLikeIgnoreCase.toLowerCase();
+        return this;
+    }
+
+    @Override
     public UserQuery userEmail(String email) {
         if (email == null) {
             throw new FlowableIllegalArgumentException("Provided email is null");
@@ -153,6 +198,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery userEmailLike(String emailLike) {
         if (emailLike == null) {
             throw new FlowableIllegalArgumentException("Provided emailLike is null");
@@ -161,6 +207,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery memberOfGroup(String groupId) {
         if (groupId == null) {
             throw new FlowableIllegalArgumentException("Provided groupId is null");
@@ -169,6 +216,7 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
     public UserQuery memberOfGroups(List<String> groupIds) {
         if (groupIds == null) {
             throw new FlowableIllegalArgumentException("Provided groupIds is null");
@@ -177,38 +225,52 @@ public class UserQueryImpl extends AbstractQuery<UserQuery, User> implements Use
         return this;
     }
 
+    @Override
+    public UserQuery tenantId(String tenantId) {
+        if (tenantId == null) {
+            throw new FlowableIllegalArgumentException("TenantId is null");
+        }
+        this.tenantId = tenantId;
+        return this;
+    }
+
     // sorting //////////////////////////////////////////////////////////
 
+    @Override
     public UserQuery orderByUserId() {
         return orderBy(UserQueryProperty.USER_ID);
     }
 
+    @Override
     public UserQuery orderByUserEmail() {
         return orderBy(UserQueryProperty.EMAIL);
     }
 
+    @Override
     public UserQuery orderByUserFirstName() {
         return orderBy(UserQueryProperty.FIRST_NAME);
     }
 
+    @Override
     public UserQuery orderByUserLastName() {
         return orderBy(UserQueryProperty.LAST_NAME);
     }
 
     // results //////////////////////////////////////////////////////////
 
+    @Override
     public long executeCount(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getUserEntityManager(commandContext).findUserCountByQueryCriteria(this);
     }
 
+    @Override
     public List<User> executeList(CommandContext commandContext) {
-        checkQueryOk();
         return CommandContextUtil.getUserEntityManager(commandContext).findUserByQueryCriteria(this);
     }
 
     // getters //////////////////////////////////////////////////////////
 
+    @Override
     public String getId() {
         return id;
     }

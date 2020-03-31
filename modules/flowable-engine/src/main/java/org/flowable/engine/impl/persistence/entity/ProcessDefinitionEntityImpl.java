@@ -18,9 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.flowable.common.engine.impl.db.SuspensionState;
 import org.flowable.engine.ProcessEngineConfiguration;
-import org.flowable.engine.common.impl.db.SuspensionState;
-import org.flowable.engine.common.impl.persistence.entity.AbstractEntity;
 import org.flowable.engine.impl.bpmn.data.IOSpecification;
 import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEntity;
@@ -29,12 +28,14 @@ import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEnt
  * @author Joram Barrez
  * @author Tijs Rademakers
  */
-public class ProcessDefinitionEntityImpl extends AbstractEntity implements ProcessDefinitionEntity, Serializable {
+public class ProcessDefinitionEntityImpl extends AbstractBpmnEngineEntity implements ProcessDefinitionEntity, Serializable {
 
     private static final long serialVersionUID = 1L;
 
     protected String name;
+    protected String localizedName;
     protected String description;
+    protected String localizedDescription;
     protected String key;
     protected int version;
     protected String category;
@@ -50,10 +51,14 @@ public class ProcessDefinitionEntityImpl extends AbstractEntity implements Proce
     protected boolean isIdentityLinksInitialized;
     protected List<IdentityLinkEntity> definitionIdentityLinkEntities = new ArrayList<>();
     protected IOSpecification ioSpecification;
+    protected String derivedFrom;
+    protected String derivedFromRoot;
+    protected int derivedVersion;
 
     // Backwards compatibility
     protected String engineVersion;
 
+    @Override
     public Object getPersistentState() {
         Map<String, Object> persistentState = new HashMap<>();
         persistentState.put("suspensionState", this.suspensionState);
@@ -64,6 +69,7 @@ public class ProcessDefinitionEntityImpl extends AbstractEntity implements Proce
     // getters and setters
     // //////////////////////////////////////////////////////
 
+    @Override
     public List<IdentityLinkEntity> getIdentityLinks() {
         if (!isIdentityLinksInitialized) {
             definitionIdentityLinkEntities = CommandContextUtil.getIdentityLinkService().findIdentityLinksByProcessDefinitionId(id);
@@ -73,66 +79,106 @@ public class ProcessDefinitionEntityImpl extends AbstractEntity implements Proce
         return definitionIdentityLinkEntities;
     }
 
+    @Override
     public String getKey() {
         return key;
     }
 
+    @Override
     public void setKey(String key) {
         this.key = key;
     }
 
+    @Override
     public String getName() {
+        if(localizedName != null && localizedName.length() > 0) {
+            return localizedName;
+        }
         return name;
     }
 
+    @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    public String getLocalizedName() {
+        return localizedName;
+    }
+
+    @Override
+    public void setLocalizedName(String localizedName) {
+        this.localizedName = localizedName;
+    }
+
+    @Override
     public void setDescription(String description) {
         this.description = description;
     }
 
+    @Override
     public String getDescription() {
+        if(localizedDescription != null && localizedDescription.length() > 0) {
+            return localizedDescription;
+        }
         return description;
     }
 
+    public String getLocalizedDescription() {
+        return localizedDescription;
+    }
+
+    @Override
+    public void setLocalizedDescription(String localizedDescription) {
+        this.localizedDescription = localizedDescription;
+    }
+
+    @Override
     public String getDeploymentId() {
         return deploymentId;
     }
 
+    @Override
     public void setDeploymentId(String deploymentId) {
         this.deploymentId = deploymentId;
     }
 
+    @Override
     public int getVersion() {
         return version;
     }
 
+    @Override
     public void setVersion(int version) {
         this.version = version;
     }
 
+    @Override
     public String getResourceName() {
         return resourceName;
     }
 
+    @Override
     public void setResourceName(String resourceName) {
         this.resourceName = resourceName;
     }
 
+    @Override
     public String getTenantId() {
         return tenantId;
     }
 
+    @Override
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
 
+    @Override
     public Integer getHistoryLevel() {
         return historyLevel;
     }
 
+    @Override
     public void setHistoryLevel(Integer historyLevel) {
         this.historyLevel = historyLevel;
     }
@@ -145,66 +191,112 @@ public class ProcessDefinitionEntityImpl extends AbstractEntity implements Proce
         this.variables = variables;
     }
 
+    @Override
     public String getCategory() {
         return category;
     }
 
+    @Override
     public void setCategory(String category) {
         this.category = category;
     }
 
+    @Override
     public String getDiagramResourceName() {
         return diagramResourceName;
     }
 
+    @Override
     public void setDiagramResourceName(String diagramResourceName) {
         this.diagramResourceName = diagramResourceName;
     }
 
+    @Override
     public boolean hasStartFormKey() {
         return hasStartFormKey;
     }
 
+    @Override
     public boolean getHasStartFormKey() {
         return hasStartFormKey;
     }
 
+    @Override
     public void setStartFormKey(boolean hasStartFormKey) {
         this.hasStartFormKey = hasStartFormKey;
     }
 
+    @Override
     public void setHasStartFormKey(boolean hasStartFormKey) {
         this.hasStartFormKey = hasStartFormKey;
     }
 
+    @Override
     public boolean isGraphicalNotationDefined() {
         return isGraphicalNotationDefined;
     }
 
+    @Override
     public boolean hasGraphicalNotation() {
         return isGraphicalNotationDefined;
     }
 
+    @Override
     public void setGraphicalNotationDefined(boolean isGraphicalNotationDefined) {
         this.isGraphicalNotationDefined = isGraphicalNotationDefined;
     }
 
+    @Override
     public int getSuspensionState() {
         return suspensionState;
     }
 
+    @Override
     public void setSuspensionState(int suspensionState) {
         this.suspensionState = suspensionState;
     }
 
+    @Override
     public boolean isSuspended() {
         return suspensionState == SuspensionState.SUSPENDED.getStateCode();
     }
+    
+    @Override
+    public String getDerivedFrom() {
+        return derivedFrom;
+    }
 
+    @Override
+    public void setDerivedFrom(String derivedFrom) {
+        this.derivedFrom = derivedFrom;
+    }
+
+    @Override
+    public String getDerivedFromRoot() {
+        return derivedFromRoot;
+    }
+
+    @Override
+    public void setDerivedFromRoot(String derivedFromRoot) {
+        this.derivedFromRoot = derivedFromRoot;
+    }
+
+    @Override
+    public int getDerivedVersion() {
+        return derivedVersion;
+    }
+
+    @Override
+    public void setDerivedVersion(int derivedVersion) {
+        this.derivedVersion = derivedVersion;
+    }
+
+    @Override
     public String getEngineVersion() {
         return engineVersion;
     }
 
+    @Override
     public void setEngineVersion(String engineVersion) {
         this.engineVersion = engineVersion;
     }
@@ -217,6 +309,7 @@ public class ProcessDefinitionEntityImpl extends AbstractEntity implements Proce
         this.ioSpecification = ioSpecification;
     }
 
+    @Override
     public String toString() {
         return "ProcessDefinitionEntity[" + id + "]";
     }

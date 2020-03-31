@@ -1,3 +1,15 @@
+/* Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.activiti.standalone.jpa;
 
 import java.util.HashMap;
@@ -10,14 +22,14 @@ import javax.persistence.EntityManagerFactory;
 import org.activiti.engine.impl.test.AbstractFlowableTestCase;
 import org.activiti.engine.impl.variable.EntityManagerSession;
 import org.activiti.engine.impl.variable.EntityManagerSessionFactory;
+import org.flowable.common.engine.api.history.HistoricData;
 import org.flowable.engine.ProcessEngine;
 import org.flowable.engine.ProcessEngineConfiguration;
-import org.flowable.engine.common.impl.history.HistoricData;
 import org.flowable.engine.history.ProcessInstanceHistoryLog;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.persistence.entity.HistoricDetailVariableInstanceUpdateEntity;
 import org.flowable.engine.test.Deployment;
-import org.flowable.variable.service.history.HistoricVariableInstance;
+import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.flowable.variable.service.impl.persistence.entity.HistoricVariableInstanceEntity;
 
 /**
@@ -85,7 +97,7 @@ public class HistoricJPAVariableTest extends AbstractFlowableTestCase {
         // in the DB.
         this.processInstanceId = runtimeService.startProcessInstanceByKey("JPAVariableProcess", variables).getId();
 
-        for (org.flowable.task.service.Task task : taskService.createTaskQuery().includeTaskLocalVariables().list()) {
+        for (org.flowable.task.api.Task task : taskService.createTaskQuery().includeTaskLocalVariables().list()) {
             taskService.complete(task.getId());
         }
 
@@ -112,7 +124,7 @@ public class HistoricJPAVariableTest extends AbstractFlowableTestCase {
         this.processInstanceId = runtimeService.startProcessInstanceByKey("JPAVariableProcess", variables).getId();
 
         // Finish tasks
-        for (org.flowable.task.service.Task task : taskService.createTaskQuery().includeTaskLocalVariables().list()) {
+        for (org.flowable.task.api.Task task : taskService.createTaskQuery().includeTaskLocalVariables().list()) {
             taskService.complete(task.getId());
         }
 
@@ -140,7 +152,7 @@ public class HistoricJPAVariableTest extends AbstractFlowableTestCase {
         this.processInstanceId = runtimeService.startProcessInstanceByKey("JPAVariableProcess", variables).getId();
 
         // Finish tasks
-        for (org.flowable.task.service.Task task : taskService.createTaskQuery().includeProcessVariables().list()) {
+        for (org.flowable.task.api.Task task : taskService.createTaskQuery().includeProcessVariables().list()) {
             taskService.setVariable(task.getId(), "simpleEntityFieldAccess", simpleEntityFieldAccess);
             taskService.complete(task.getId());
         }

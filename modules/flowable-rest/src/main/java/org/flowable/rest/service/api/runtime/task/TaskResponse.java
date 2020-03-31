@@ -1,9 +1,9 @@
 /* Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,10 +17,10 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.flowable.common.rest.util.DateToStringSerializer;
 import org.flowable.rest.service.api.engine.variable.RestVariable;
-import org.flowable.rest.util.DateToStringSerializer;
-import org.flowable.task.service.DelegationState;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.DelegationState;
+import org.flowable.task.api.Task;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -44,7 +44,14 @@ public class TaskResponse {
     protected Date dueDate;
     protected int priority;
     protected boolean suspended;
+    @JsonSerialize(using = DateToStringSerializer.class, as = Date.class)
+    protected Date claimTime;
     protected String taskDefinitionKey;
+    protected String scopeDefinitionId;
+    protected String scopeId;
+    protected String subScopeId;
+    protected String scopeType;
+    protected String propagatedStageInstanceId;
     protected String tenantId;
     protected String category;
     protected String formKey;
@@ -61,6 +68,9 @@ public class TaskResponse {
 
     protected List<RestVariable> variables = new ArrayList<>();
 
+    public TaskResponse() {
+    }
+
     public TaskResponse(Task task) {
         setId(task.getId());
         setOwner(task.getOwner());
@@ -72,12 +82,18 @@ public class TaskResponse {
         setDueDate(task.getDueDate());
         setPriority(task.getPriority());
         setSuspended(task.isSuspended());
+        setClaimTime(task.getClaimTime());
         setTaskDefinitionKey(task.getTaskDefinitionKey());
         setParentTaskId(task.getParentTaskId());
         setExecutionId(task.getExecutionId());
         setCategory(task.getCategory());
         setProcessInstanceId(task.getProcessInstanceId());
         setProcessDefinitionId(task.getProcessDefinitionId());
+        setScopeDefinitionId(task.getScopeDefinitionId());
+        setScopeId(task.getScopeId());
+        setSubScopeId(task.getSubScopeId());
+        setScopeType(task.getScopeType());
+        setPropagatedStageInstanceId(task.getPropagatedStageInstanceId());
         setTenantId(task.getTenantId());
         setFormKey(task.getFormKey());
     }
@@ -90,6 +106,7 @@ public class TaskResponse {
         return result;
     }
 
+    @ApiModelProperty(example = "8")
     public String getId() {
         return id;
     }
@@ -98,6 +115,7 @@ public class TaskResponse {
         this.id = id;
     }
 
+    @ApiModelProperty(example = "http://localhost:8182/runtime/tasks/8")
     public String getUrl() {
         return url;
     }
@@ -106,6 +124,7 @@ public class TaskResponse {
         this.url = url;
     }
 
+    @ApiModelProperty(example = "owner")
     public String getOwner() {
         return owner;
     }
@@ -114,6 +133,7 @@ public class TaskResponse {
         this.owner = owner;
     }
 
+    @ApiModelProperty(example = "kermit")
     public String getAssignee() {
         return assignee;
     }
@@ -122,7 +142,7 @@ public class TaskResponse {
         this.assignee = assignee;
     }
 
-    @ApiModelProperty(value = "Delegation-state of the task, can be null, \"pending\" or \"resolved\".")
+    @ApiModelProperty(example = "pending", value = "Delegation-state of the task, can be null, \"pending\" or \"resolved\".")
     public String getDelegationState() {
         return delegationState;
     }
@@ -131,6 +151,7 @@ public class TaskResponse {
         this.delegationState = delegationState;
     }
 
+    @ApiModelProperty(example = "My task")
     public String getName() {
         return name;
     }
@@ -139,6 +160,7 @@ public class TaskResponse {
         this.name = name;
     }
 
+    @ApiModelProperty(example = "Task description")
     public String getDescription() {
         return description;
     }
@@ -147,6 +169,7 @@ public class TaskResponse {
         this.description = description;
     }
 
+    @ApiModelProperty(example = "2018-04-17T10:17:43.902+0000")
     public Date getCreateTime() {
         return createTime;
     }
@@ -155,6 +178,7 @@ public class TaskResponse {
         this.createTime = createTime;
     }
 
+    @ApiModelProperty(example = "2018-04-17T10:17:43.902+0000")
     public Date getDueDate() {
         return dueDate;
     }
@@ -163,6 +187,7 @@ public class TaskResponse {
         this.dueDate = dueDate;
     }
 
+    @ApiModelProperty(example = "50")
     public int getPriority() {
         return priority;
     }
@@ -179,6 +204,16 @@ public class TaskResponse {
         this.suspended = suspended;
     }
 
+    @ApiModelProperty(example = "2018-04-17T10:17:43.902+0000", dataType = "string")
+    public Date getClaimTime() {
+        return claimTime;
+    }
+
+    public void setClaimTime(Date claimTime) {
+        this.claimTime = claimTime;
+    }
+
+    @ApiModelProperty(example = "theTask")
     public String getTaskDefinitionKey() {
         return taskDefinitionKey;
     }
@@ -187,6 +222,7 @@ public class TaskResponse {
         this.taskDefinitionKey = taskDefinitionKey;
     }
 
+    @ApiModelProperty(example = "null")
     public String getParentTaskId() {
         return parentTaskId;
     }
@@ -195,6 +231,7 @@ public class TaskResponse {
         this.parentTaskId = parentTaskId;
     }
 
+    @ApiModelProperty(example = "null")
     public String getParentTaskUrl() {
         return parentTaskUrl;
     }
@@ -203,6 +240,7 @@ public class TaskResponse {
         this.parentTaskUrl = parentTaskUrl;
     }
 
+    @ApiModelProperty(example = "5")
     public String getExecutionId() {
         return executionId;
     }
@@ -211,6 +249,7 @@ public class TaskResponse {
         this.executionId = executionId;
     }
 
+    @ApiModelProperty(example = "http://localhost:8182/runtime/executions/5")
     public String getExecutionUrl() {
         return executionUrl;
     }
@@ -219,6 +258,7 @@ public class TaskResponse {
         this.category = category;
     }
 
+    @ApiModelProperty(example = "ExampleCategory")
     public String getCategory() {
         return category;
     }
@@ -227,6 +267,7 @@ public class TaskResponse {
         this.executionUrl = executionUrl;
     }
 
+    @ApiModelProperty(example = "5")
     public String getProcessInstanceId() {
         return processInstanceId;
     }
@@ -235,6 +276,7 @@ public class TaskResponse {
         this.processInstanceId = processInstanceId;
     }
 
+    @ApiModelProperty(example = "http://localhost:8182/runtime/process-instances/5")
     public String getProcessInstanceUrl() {
         return processInstanceUrl;
     }
@@ -243,6 +285,7 @@ public class TaskResponse {
         this.processInstanceUrl = processInstanceUrl;
     }
 
+    @ApiModelProperty(example = "oneTaskProcess%3A1%3A4")
     public String getProcessDefinitionId() {
         return processDefinitionId;
     }
@@ -251,6 +294,7 @@ public class TaskResponse {
         this.processDefinitionId = processDefinitionId;
     }
 
+    @ApiModelProperty(example = "http://localhost:8182/runtime/process-definitions/oneTaskProcess%3A1%3A4")
     public String getProcessDefinitionUrl() {
         return processDefinitionUrl;
     }
@@ -271,6 +315,52 @@ public class TaskResponse {
         variables.add(variable);
     }
 
+    @ApiModelProperty(example = "12")
+    public String getScopeDefinitionId() {
+        return scopeDefinitionId;
+    }
+
+    public void setScopeDefinitionId(String scopeDefinitionId) {
+        this.scopeDefinitionId = scopeDefinitionId;
+    }
+
+    @ApiModelProperty(example = "14")
+    public String getScopeId() {
+        return scopeId;
+    }
+
+    public void setScopeId(String scopeId) {
+        this.scopeId = scopeId;
+    }
+
+    @ApiModelProperty(example = "15")
+    public String getSubScopeId() {
+        return subScopeId;
+    }
+
+    public void setSubScopeId(String subScopeId) {
+        this.subScopeId = subScopeId;
+    }
+
+    @ApiModelProperty(example = "cmmn")
+    public String getScopeType() {
+        return scopeType;
+    }
+
+    public void setScopeType(String scopeType) {
+        this.scopeType = scopeType;
+    }
+
+    @ApiModelProperty(example = "16")
+    public String getPropagatedStageInstanceId() {
+        return propagatedStageInstanceId;
+    }
+
+    public void setPropagatedStageInstanceId(String propagatedStageInstanceId) {
+        this.propagatedStageInstanceId = propagatedStageInstanceId;
+    }
+
+    @ApiModelProperty(example = "someTenantId")
     public String getTenantId() {
         return tenantId;
     }

@@ -38,6 +38,10 @@ public class ContentEngineImpl implements ContentEngine {
         this.managementService = engineConfiguration.getContentManagementService();
         this.contentService = engineConfiguration.getContentService();
 
+        if (engineConfiguration.getSchemaManagementCmd() != null) {
+            engineConfiguration.getCommandExecutor().execute(engineConfiguration.getSchemaCommandConfig(), engineConfiguration.getSchemaManagementCmd());
+        }
+        
         if (name == null) {
             LOGGER.info("default flowable ContentEngine created");
         } else {
@@ -47,25 +51,31 @@ public class ContentEngineImpl implements ContentEngine {
         ContentEngines.registerContentEngine(this);
     }
 
+    @Override
     public void close() {
         ContentEngines.unregister(this);
+        engineConfiguration.close();
     }
 
     // getters and setters
     // //////////////////////////////////////////////////////
 
+    @Override
     public String getName() {
         return name;
     }
 
+    @Override
     public ContentManagementService getContentManagementService() {
         return managementService;
     }
 
+    @Override
     public ContentService getContentService() {
         return contentService;
     }
 
+    @Override
     public ContentEngineConfiguration getContentEngineConfiguration() {
         return engineConfiguration;
     }

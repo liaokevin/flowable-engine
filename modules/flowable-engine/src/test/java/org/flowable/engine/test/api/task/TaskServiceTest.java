@@ -13,46 +13,65 @@
 
 package org.flowable.engine.test.api.task;
 
-import static com.googlecode.catchexception.CatchException.catchException;
-import static com.googlecode.catchexception.CatchException.caughtException;
+import static java.util.stream.Collectors.toSet;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.flowable.engine.impl.test.HistoryTestHelper.isHistoryLevelAtLeast;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsNull.notNullValue;
 
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
 
-import org.flowable.engine.FlowableTaskAlreadyClaimedException;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.api.FlowableObjectNotFoundException;
-import org.flowable.engine.common.api.FlowableOptimisticLockingException;
-import org.flowable.engine.common.impl.history.HistoryLevel;
-import org.flowable.engine.common.impl.interceptor.EngineConfigurationConstants;
-import org.flowable.engine.common.impl.util.CollectionUtil;
+import org.apache.ibatis.exceptions.PersistenceException;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.api.FlowableOptimisticLockingException;
+import org.flowable.common.engine.api.FlowableTaskAlreadyClaimedException;
+import org.flowable.common.engine.api.scope.ScopeTypes;
+import org.flowable.common.engine.impl.history.HistoryLevel;
+import org.flowable.common.engine.impl.interceptor.EngineConfigurationConstants;
+import org.flowable.common.engine.impl.util.CollectionUtil;
 import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.history.HistoricDetail;
 import org.flowable.engine.history.HistoricVariableUpdate;
 import org.flowable.engine.impl.TaskServiceImpl;
 import org.flowable.engine.impl.persistence.entity.CommentEntity;
 import org.flowable.engine.impl.persistence.entity.HistoricDetailVariableInstanceUpdateEntity;
-import org.flowable.engine.impl.test.HistoryTestHelper;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
+import org.flowable.engine.impl.util.CommandContextUtil;
+import org.flowable.engine.runtime.ActivityInstance;
+import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.task.Attachment;
 import org.flowable.engine.task.Comment;
 import org.flowable.engine.task.Event;
 import org.flowable.engine.test.Deployment;
-import org.flowable.identitylink.service.IdentityLink;
-import org.flowable.identitylink.service.IdentityLinkType;
+import org.flowable.identitylink.api.IdentityLink;
+import org.flowable.identitylink.api.IdentityLinkType;
+import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEntityImpl;
 import org.flowable.idm.api.Group;
 import org.flowable.idm.api.User;
-import org.flowable.task.service.DelegationState;
+import org.flowable.task.api.DelegationState;
+import org.flowable.task.api.Task;
+import org.flowable.task.api.history.HistoricTaskInstance;
+import org.flowable.task.service.TaskPostProcessor;
 import org.flowable.task.service.TaskServiceConfiguration;
-import org.flowable.task.service.history.HistoricTaskInstance;
 import org.flowable.task.service.impl.persistence.CountingTaskEntity;
+import org.flowable.variable.api.history.HistoricVariableInstance;
+import org.flowable.variable.api.persistence.entity.VariableInstance;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author Frederik Heremans
@@ -61,10 +80,183 @@ import org.flowable.task.service.impl.persistence.CountingTaskEntity;
  */
 public class TaskServiceTest extends PluggableFlowableTestCase {
 
+    private Task task = null;
+    private SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+
+    @AfterEach
+    public void tearDown() throws Exception {
+        if (task != null) {
+            taskService.deleteTask(task.getId(), true);
+        }
+    }
+
+    @Test
+    public void testCreateTaskWithBuilder() {
+        // We need to make sure the time ends on .000, .003 or .007 due to SQL Server rounding to that
+        Date todayDate = Date.from(Instant.now().plus(1, ChronoUnit.SECONDS).plusMillis(133));
+        task = taskService.createTaskBuilder().
+                        name("testName").
+                        description("testDescription").
+                        priority(35).
+                        owner("testOwner").
+                        assignee("testAssignee").
+                        dueDate(todayDate).
+                        category("testCategory").
+                        parentTaskId("testParentTaskId").
+                        tenantId("testTenantId").
+                        formKey("testFormKey").
+                        taskDefinitionId("testDefinitionId").
+                        taskDefinitionKey("testDefinitionKey").
+                        scopeType(ScopeTypes.TASK).
+                        scopeId("scopeIdValue").
+                        create();
+        Task updatedTask = taskService.createTaskQuery().taskId(task.getId()).singleResult();
+        assertThat(updatedTask, notNullValue());
+        assertThat(updatedTask.getName(), is("testName"));
+        assertThat(updatedTask.getDescription(), is("testDescription"));
+        assertThat(updatedTask.getPriority(), is(35));
+        assertThat(updatedTask.getOwner(), is("testOwner"));
+        assertThat(updatedTask.getAssignee(), is("testAssignee"));
+        assertThat(simpleDateFormat.format(updatedTask.getDueDate()), is(simpleDateFormat.format(todayDate)));
+        assertThat(updatedTask.getCategory(), is("testCategory"));
+        assertThat(updatedTask.getParentTaskId(), is("testParentTaskId"));
+        assertThat(updatedTask.getTenantId(), is("testTenantId"));
+        assertThat(updatedTask.getFormKey(), is("testFormKey"));
+        assertThat(updatedTask.getTaskDefinitionId(), is("testDefinitionId"));
+        assertThat(updatedTask.getTaskDefinitionKey(), is("testDefinitionKey"));
+        assertThat(updatedTask.getScopeId(), is("scopeIdValue"));
+        assertThat(updatedTask.getScopeType(), is(ScopeTypes.TASK));
+    }
+
+    @Test
+    public void testBuilderCreateTaskWithParent() {
+        Task parentTask = taskService.newTask();
+        taskService.saveTask(parentTask);
+        try {
+            task = taskService.createTaskBuilder().
+                    name("testName").
+                    parentTaskId(parentTask.getId()).
+                    identityLinks(getDefaultIdentityLinks()).
+                    create();
+            Task updatedParentTask = taskService.createTaskQuery().taskId(parentTask.getId()).singleResult();
+            assertThat(((CountingTaskEntity) updatedParentTask).getSubTaskCount(), is(1));
+            Task updatedTask = taskService.createTaskQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+            assertThat(((CountingTaskEntity) updatedTask).getIdentityLinkCount(), is(2));
+        } finally {
+            this.taskService.deleteTask(parentTask.getId(), true);
+        }
+    }
+
+    @Test
+    public void testCreateTaskWithOwnerAssigneeAndIdentityLinks() {
+        task = taskService.createTaskBuilder().
+                        name("testName").
+                        owner("testOwner").
+                        assignee("testAssignee").
+                        identityLinks(getDefaultIdentityLinks()).
+                        create();
+        Task updatedTask = taskService.createTaskQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+        assertThat(updatedTask, notNullValue());
+        assertThat(updatedTask.getName(), is("testName"));
+        assertThat(updatedTask.getAssignee(), is("testAssignee"));
+        assertThat(updatedTask.getOwner(), is("testOwner"));
+        assertThat(updatedTask.getIdentityLinks().size(), is(2));
+        assertThat(updatedTask.getPriority(), is(Task.DEFAULT_PRIORITY));
+        
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+            HistoricTaskInstance historicTaskInstance = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+            assertThat(historicTaskInstance, notNullValue());
+            assertThat(historicTaskInstance.getName(), is("testName"));
+            assertThat(historicTaskInstance.getPriority(), is(Task.DEFAULT_PRIORITY));
+            assertThat(historicTaskInstance.getIdentityLinks().size(), is(2));
+        }
+
+        taskService.deleteUserIdentityLink(updatedTask.getId(), "testUserBuilder", IdentityLinkType.CANDIDATE);
+        taskService.deleteGroupIdentityLink(updatedTask.getId(), "testGroupBuilder", IdentityLinkType.CANDIDATE);
+    }
+
+    @Test
+    public void testCreateTaskWithBuilderAndPostprocessor() {
+        TaskServiceConfiguration taskServiceConfiguration = (TaskServiceConfiguration) this.processEngineConfiguration.getServiceConfigurations().get(EngineConfigurationConstants.KEY_TASK_SERVICE_CONFIG);
+        TaskPostProcessor previousTaskPostProcessor = taskServiceConfiguration.getTaskPostProcessor();
+        try {
+            taskServiceConfiguration.setTaskPostProcessor(
+                    taskEntity -> {
+                        taskEntity.addUserIdentityLink("testUser", IdentityLinkType.CANDIDATE);
+                        taskEntity.addGroupIdentityLink("testGroup", IdentityLinkType.CANDIDATE);
+                        return taskEntity;
+                    }
+            );
+            task = taskService.createTaskBuilder().
+                    name("testName").
+                    create();
+            Task updatedTask = taskService.createTaskQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+            assertThat(updatedTask, notNullValue());
+            assertThat(updatedTask.getName(), is("testName"));
+            assertThat(updatedTask.getIdentityLinks().size(), is(2));
+            
+            if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+                HistoricTaskInstance historicTaskInstance = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+                assertThat(historicTaskInstance, notNullValue());
+                assertThat(historicTaskInstance.getName(), is("testName"));
+                assertThat(historicTaskInstance.getIdentityLinks().size(), is(2));
+            }
+
+            taskService.deleteUserIdentityLink(updatedTask.getId(), "testUser", IdentityLinkType.CANDIDATE);
+            taskService.deleteGroupIdentityLink(updatedTask.getId(), "testGroup", IdentityLinkType.CANDIDATE);
+        } finally {
+            taskServiceConfiguration.setTaskPostProcessor(previousTaskPostProcessor);
+        }
+    }
+
+    @Test
+    public void testCreateTaskWithOwnerAssigneeAndIdentityLinksAndPostProcessor() {
+        TaskServiceConfiguration taskServiceConfiguration = (TaskServiceConfiguration) this.processEngineConfiguration.getServiceConfigurations().get(EngineConfigurationConstants.KEY_TASK_SERVICE_CONFIG);
+        TaskPostProcessor previousTaskPostProcessor = taskServiceConfiguration.getTaskPostProcessor();
+        try {
+            taskServiceConfiguration.setTaskPostProcessor(
+                    taskEntity -> {
+                        taskEntity.setName("testNameFromPostProcessor");
+                        taskEntity.addUserIdentityLink("testUser", IdentityLinkType.CANDIDATE);
+                        taskEntity.addGroupIdentityLink("testGroup", IdentityLinkType.CANDIDATE);
+                        return taskEntity;
+                    }
+            );
+
+            task = taskService.createTaskBuilder().
+                    name("testName").
+                    owner("testOwner").
+                    assignee("testAssignee").
+                    identityLinks(getDefaultIdentityLinks()).
+                    create();
+            Task updatedTask = taskService.createTaskQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+            assertThat(updatedTask, notNullValue());
+            assertThat(updatedTask.getName(), is("testNameFromPostProcessor"));
+            assertThat(updatedTask.getAssignee(), is("testAssignee"));
+            assertThat(updatedTask.getOwner(), is("testOwner"));
+            assertThat(updatedTask.getIdentityLinks().size(), is(4));
+            
+            if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+                HistoricTaskInstance historicTaskInstance = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+                assertThat(historicTaskInstance, notNullValue());
+                assertThat(historicTaskInstance.getName(), is("testNameFromPostProcessor"));
+                assertThat(historicTaskInstance.getIdentityLinks().size(), is(4));
+            }
+
+            taskService.deleteUserIdentityLink(updatedTask.getId(), "testUserBuilder", IdentityLinkType.CANDIDATE);
+            taskService.deleteGroupIdentityLink(updatedTask.getId(), "testGroupBuilder", IdentityLinkType.CANDIDATE);
+            taskService.deleteUserIdentityLink(updatedTask.getId(), "testUser", IdentityLinkType.CANDIDATE);
+            taskService.deleteGroupIdentityLink(updatedTask.getId(), "testGroup", IdentityLinkType.CANDIDATE);
+        } finally {
+            taskServiceConfiguration.setTaskPostProcessor(previousTaskPostProcessor);
+        }
+    }
+
+    @Test
     public void testSaveTaskUpdate() throws Exception {
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setDescription("description");
         task.setName("taskname");
         task.setPriority(0);
@@ -82,6 +274,8 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertEquals("taskowner", task.getOwner());
         assertEquals(dueDate, task.getDueDate());
         assertEquals(0, task.getPriority());
+        assertNull(task.getScopeId());
+        assertNull(task.getScopeType());
 
         task.setName("updatedtaskname");
         task.setDescription("updateddescription");
@@ -100,7 +294,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertEquals(dueDate, task.getDueDate());
         assertEquals(1, task.getPriority());
 
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
             HistoricTaskInstance historicTaskInstance = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).singleResult();
             assertEquals("updatedtaskname", historicTaskInstance.getName());
             assertEquals("updateddescription", historicTaskInstance.getDescription());
@@ -114,8 +308,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     public void testTaskOwner() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setOwner("johndoe");
         taskService.saveTask(task);
 
@@ -133,9 +328,10 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     public void testTaskComments() {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
-            org.flowable.task.service.Task task = taskService.newTask();
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            org.flowable.task.api.Task task = taskService.newTask();
             task.setOwner("johndoe");
             taskService.saveTask(task);
             String taskId = task.getId();
@@ -163,9 +359,10 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testCustomTaskComments() {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
-            org.flowable.task.service.Task task = taskService.newTask();
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            org.flowable.task.api.Task task = taskService.newTask();
             task.setOwner("johndoe");
             taskService.saveTask(task);
             String taskId = task.getId();
@@ -176,7 +373,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
 
             Comment comment = taskService.addComment(taskId, null, "This is a regular comment");
             Comment customComment1 = taskService.addComment(taskId, null, customType1, "This is a custom comment of type Type1");
-            Comment customComment2 = taskService.addComment(taskId, null, customType1, "This is another Type1 comment");
+            taskService.addComment(taskId, null, customType1, "This is another Type1 comment");
             Comment customComment3 = taskService.addComment(taskId, null, customType2, "This is another custom comment. Type2 this time!");
 
             assertEquals(CommentEntity.TYPE_COMMENT, comment.getType());
@@ -205,9 +402,10 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
     
+    @Test
     public void testUpdateTaskComments() {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
-            org.flowable.task.service.Task task = taskService.newTask();
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            org.flowable.task.api.Task task = taskService.newTask();
             task.setOwner("johndoe");
             taskService.saveTask(task);
             String taskId = task.getId();
@@ -235,9 +433,10 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testTaskAttachments() {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
-            org.flowable.task.service.Task task = taskService.newTask();
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            org.flowable.task.api.Task task = taskService.newTask();
             task.setOwner("johndoe");
             taskService.saveTask(task);
             String taskId = task.getId();
@@ -258,16 +457,17 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
 
             assertEquals(0, taskService.getTaskComments(taskId).size());
             
-            waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+            waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
             assertEquals(1, historyService.createHistoricTaskInstanceQuery().taskId(taskId).list().size());
 
             taskService.deleteTask(taskId, true);
         }
     }
 
+    @Test
     public void testSaveTaskAttachment() {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
-            org.flowable.task.service.Task task = taskService.newTask();
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+            org.flowable.task.api.Task task = taskService.newTask();
             task.setOwner("johndoe");
             taskService.saveTask(task);
             String taskId = task.getId();
@@ -288,7 +488,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
 
             assertEquals(0, taskService.getTaskComments(taskId).size());
             
-            waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+            waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
             
             assertEquals(1, historyService.createHistoricTaskInstanceQuery().taskId(taskId).list().size());
 
@@ -296,9 +496,10 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testTaskAttachmentWithProcessInstanceId() {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
 
             ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
@@ -320,7 +521,24 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
             ((TaskServiceImpl) taskService).deleteComments(null, processInstanceId);
         }
     }
+    
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
+    public void saveUserTaskTest() {
+        Map<String, Object> startMap = new HashMap<>();
+        startMap.put("titleId", "testTitleId");
+        startMap.put("otherVariable", "testOtherVariable");
 
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", startMap);
+        Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId())
+            .includeIdentityLinks()
+            .singleResult();
+        task.setDueDate(new Date());
+        task.setCategory("main");
+        taskService.saveTask(task);
+    }
+
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testMultipleProcessesStarted() {
 
@@ -330,12 +548,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
 
         // See if there are tasks for kermit
-        List<org.flowable.task.service.Task> tasks = processEngine.getTaskService().createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks = processEngine.getTaskService().createTaskQuery().list();
         assertEquals(20, tasks.size());
     }
 
+    @Test
     public void testTaskDelegation() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setOwner("johndoe");
         taskService.saveTask(task);
         taskService.delegateTask(task.getId(), "joesmoe");
@@ -379,8 +598,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(taskId, true);
     }
 
+    @Test
     public void testTaskDelegationThroughServiceCall() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setOwner("johndoe");
         taskService.saveTask(task);
         String taskId = task.getId();
@@ -406,8 +626,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(taskId, true);
     }
 
+    @Test
     public void testTaskAssignee() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setAssignee("johndoe");
         taskService.saveTask(task);
 
@@ -425,6 +646,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     public void testSaveTaskNullTask() {
         try {
             taskService.saveTask(null);
@@ -434,6 +656,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testDeleteTaskNullTaskId() {
         try {
             taskService.deleteTask(null);
@@ -443,11 +666,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testDeleteTaskUnexistingTaskId() {
         // Deleting unexisting task should be silently ignored
         taskService.deleteTask("unexistingtaskid");
     }
 
+    @Test
     public void testDeleteTasksNullTaskIds() {
         try {
             taskService.deleteTasks(null);
@@ -457,9 +682,10 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testDeleteTasksTaskIdsUnexistingTaskId() {
 
-        org.flowable.task.service.Task existingTask = taskService.newTask();
+        org.flowable.task.api.Task existingTask = taskService.newTask();
         taskService.saveTask(existingTask);
 
         // The unexisting taskId's should be silently ignored. Existing task
@@ -471,8 +697,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertNull(existingTask);
     }
 
+    @Test
     public void testDeleteTaskIdentityLink() {
-        org.flowable.task.service.Task task = null;
+        org.flowable.task.api.Task task = null;
         try {
             task = taskService.newTask();
             task.setName("test");
@@ -496,14 +723,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         } finally {
             // Adhoc task not part of deployment, cleanup
             if (task != null && task.getId() != null) {
-                taskService.deleteTask(task.getId());
-                if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
-                    historyService.deleteHistoricTaskInstance(task.getId());
-                }
+                taskService.deleteTask(task.getId(), true);
             }
         }
     }
 
+    @Test
     public void testClaimNullArguments() {
         try {
             taskService.claim(null, "userid");
@@ -513,6 +738,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testClaimUnexistingTaskId() {
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -522,14 +748,15 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingtaskid", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
 
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testClaimAlreadyClaimedTaskByOtherUser() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -551,8 +778,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(secondUser.getId());
     }
 
+    @Test
     public void testClaimAlreadyClaimedTaskBySameUser() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -569,8 +797,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testUnClaimTask() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -590,6 +819,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testCompleteTaskNullTaskId() {
         try {
             taskService.complete(null);
@@ -599,16 +829,18 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testCompleteTaskUnexistingTaskId() {
         try {
             taskService.complete("unexistingtask");
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingtask", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
     }
 
+    @Test
     public void testCompleteTaskWithParametersNullTaskId() {
         try {
             taskService.complete(null);
@@ -618,55 +850,69 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testCompleteTaskWithParametersUnexistingTaskId() {
         try {
             taskService.complete("unexistingtask");
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingtask", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
     }
 
+    @Test
     public void testCompleteTaskWithParametersNullParameters() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
 
         String taskId = task.getId();
         taskService.complete(taskId, null);
 
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
             historyService.deleteHistoricTaskInstance(taskId);
         }
 
         // Fetch the task again
         task = taskService.createTaskQuery().taskId(taskId).singleResult();
         assertNull(task);
+
+        managementService.executeCommand(commandContext -> {
+            CommandContextUtil.getHistoricTaskService(commandContext).deleteHistoricTaskLogEntriesForTaskId(taskId);
+            return null;
+        });
     }
 
     @SuppressWarnings("unchecked")
+    @Test
     public void testCompleteTaskWithParametersEmptyParameters() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
 
         String taskId = task.getId();
         taskService.complete(taskId, Collections.EMPTY_MAP);
 
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
             historyService.deleteHistoricTaskInstance(taskId);
         }
 
         // Fetch the task again
         task = taskService.createTaskQuery().taskId(taskId).singleResult();
         assertNull(task);
+
+        managementService.executeCommand(commandContext -> {
+            CommandContextUtil.getHistoricTaskService(commandContext).deleteHistoricTaskLogEntriesForTaskId(taskId);
+            return null;
+        });
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml" })
     public void testCompleteWithParametersTask() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("twoTasksProcess");
 
         // Fetch first task
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("First task", task.getName());
 
         // Complete first task
@@ -684,12 +930,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertEquals("myValue", variables.get("myParam"));
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml" })
     public void testCompleteWithParametersTask2() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("twoTasksProcess");
 
         // Fetch first task
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("First task", task.getName());
 
         // Complete first task
@@ -710,12 +957,165 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertEquals("myValue", variables.get("myParam"));
     }
 
+    @Test
+    @Deployment(resources = {"org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml"})
+    public void testCompleteWithExecutionBaseNewPropertyExpressionTask() {
+        runtimeService.startProcessInstanceByKey("twoTasksProcess");
+
+        // Fetch first task
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+        assertEquals("First task", task.getName());
+
+        // Complete first task
+        Map<String, Object> taskParams = new HashMap<>();
+        taskParams.put("${execution.myParam}", "myValue");
+        try {
+            taskService.complete(task.getId(), taskParams);
+            fail();
+        } catch (FlowableException e) {
+            assertEquals("new properties are not resolved", e.getCause().getMessage(),
+                    "Cannot write property: myParam");
+        }
+    }
+
+    @Test
+    @Deployment(resources = {"org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml"})
+    public void testCompleteWithExecutionIdParametersTask() {
+        runtimeService.startProcessInstanceByKey("twoTasksProcess");
+
+        // Fetch first task
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+        assertEquals("First task", task.getName());
+
+        // Complete first task
+        Map<String, Object> taskParams = new HashMap<>();
+        taskParams.put("${execution.id}", "myValue");
+        try {
+            taskService.complete(task.getId(), taskParams);
+        } catch (PersistenceException e) {
+            // expected exception.
+        }
+    }
+
+    @Test
+    @Deployment(resources = {"org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml"})
+    public void testCompleteWithExecutionNameParametersTask() {
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("twoTasksProcess");
+
+        // Fetch first task
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+        assertEquals("First task", task.getName());
+
+        // Complete first task
+        Map<String, Object> taskParams = new HashMap<>();
+        taskParams.put("${execution.name}", "myUpdatedName");
+        taskService.complete(task.getId(), taskParams);
+
+        // Verify task parameters set on execution
+        Execution subExecution = runtimeService.createExecutionQuery().parentId(processInstance.getId()).singleResult();
+        assertEquals("myUpdatedName", subExecution.getName());
+    }
+
+    @Test
+    @Deployment(resources = {"org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml"})
+    public void testCompleteWithExistingVariableParametersTask_withoutBase() {
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("twoTasksProcess",
+                Collections.singletonMap("newVariable", "oldValue")
+            );
+
+        // Fetch first task
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+        assertEquals("First task", task.getName());
+
+        // Complete first task
+        Map<String, Object> taskParams = new HashMap<>();
+        taskParams.put("${newVariable}", "newVariableValue");
+        taskService.complete(task.getId(), taskParams);
+
+        // Verify task parameters set on execution
+        Execution subExecution = runtimeService.createExecutionQuery().parentId(processInstance.getId()).singleResult();
+        Map<String, VariableInstance> variableInstances = runtimeService.getVariableInstances(subExecution.getId());
+        assertEquals("newVariableValue", variableInstances.get("newVariable").getTextValue());
+
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration )) {
+            HistoricVariableInstance historicVariableInstance = this.historyService.createHistoricVariableInstanceQuery()
+                .id(variableInstances.get("newVariable").getId())
+                .singleResult();
+            assertEquals("newVariableValue", historicVariableInstance.getValue());
+        }
+    }
+
+    @Test
+    @Deployment(resources = {"org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml"})
+    public void testCompleteWithExistingNewVariableParametersTask_withoutBase() {
+        runtimeService.startProcessInstanceByKey("twoTasksProcess");
+
+        // Fetch first task
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+        assertEquals("First task", task.getName());
+
+        // Complete first task
+        Map<String, Object> taskParams = new HashMap<>();
+        taskParams.put("${newVariable}", "newVariableValue");
+
+        try {
+            taskService.complete(task.getId(), taskParams);
+            fail("expected exception");
+        } catch (FlowableException e) {
+            // expected exception.
+        }
+    }
+
+    @Test
+    @Deployment(resources = {"org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml"})
+    public void testCompleteWithExistingNewVariableParametersTask() {
+        runtimeService.startProcessInstanceByKey("twoTasksProcess");
+
+        // Fetch first task
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+        assertEquals("First task", task.getName());
+
+        // Complete first task
+        Map<String, Object> taskParams = new HashMap<>();
+        taskParams.put("${execution.newVariable}", "newVariableValue");
+
+        try {
+            taskService.complete(task.getId(), taskParams);
+            fail("expected exception");
+        } catch (FlowableException e) {
+            // expected exception.
+        }
+    }
+
+    @Test
+    @Deployment(resources = {"org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml"})
+    public void testCompleteWithExistingVariableParametersTask() {
+        runtimeService.startProcessInstanceByKey("twoTasksProcess",
+            Collections.singletonMap("newVariable", "oldValue")
+        );
+
+        // Fetch first task
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+        assertEquals("First task", task.getName());
+
+        // Complete first task
+        Map<String, Object> taskParams = new HashMap<>();
+        taskParams.put("${execution.newVariable}", "newVariableValue");
+        try {
+            taskService.complete(task.getId(), taskParams);
+            fail("expected exception");
+        } catch (FlowableException e) {
+            // expected exception.
+        }
+    }
+
+    @Test
     @Deployment
     public void testCompleteWithTaskLocalParameters() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("testTaskLocalVars");
 
         // Fetch first task
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
 
         // Complete first task
         Map<String, Object> taskParams = new HashMap<>();
@@ -735,12 +1135,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
 
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskWithFormKeyProcess.bpmn20.xml" })
     public void testCompleteTaskWithFormKey() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskWithFormProcess");
 
         // Fetch task
-        org.flowable.task.service.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertEquals("my task", task.getName());
         assertEquals("myFormKey", task.getFormKey());
         assertEquals("myAssignee", task.getAssignee());
@@ -752,7 +1153,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         // Complete task
         taskService.complete(task.getId());
 
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
             HistoricTaskInstance historicTask = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).singleResult();
             assertEquals("my task", historicTask.getName());
             assertEquals("myFormKey", historicTask.getFormKey());
@@ -764,11 +1165,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testSetAssignee() {
         User user = identityService.newUser("user");
         identityService.saveUser(user);
 
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         assertNull(task.getAssignee());
         taskService.saveTask(task);
 
@@ -786,6 +1188,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     public void testSetAssigneeNullTaskId() {
         try {
             taskService.setAssignee(null, "userId");
@@ -795,6 +1198,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testSetAssigneeUnexistingTask() {
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -804,18 +1208,19 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingTaskId", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
 
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testAddCandidateUserDuplicate() {
         // Check behavior when adding the same user twice as candidate
         User user = identityService.newUser("user");
         identityService.saveUser(user);
 
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
 
         taskService.addCandidateUser(task.getId(), user.getId());
@@ -827,6 +1232,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testCountingTaskForAddRemoveIdentityLink() {
         processEngineConfiguration.setEnableTaskRelationshipCounts(true);
@@ -834,7 +1240,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskServiceConfiguration.setEnableTaskRelationshipCounts(true);
 
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
         assertEquals(0, ((CountingTaskEntity) currentTask).getIdentityLinkCount());
 
         taskService.addUserIdentityLink(currentTask.getId(), "user01", IdentityLinkType.PARTICIPANT);
@@ -890,6 +1296,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskServiceConfiguration.setEnableTaskRelationshipCounts(false);
     }
 
+    @Test
     public void testAddCandidateUserNullTaskId() {
         try {
             taskService.addCandidateUser(null, "userId");
@@ -899,6 +1306,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddCandidateUserNullUserId() {
         try {
             taskService.addCandidateUser("taskId", null);
@@ -908,6 +1316,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddCandidateUserUnexistingTask() {
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -917,12 +1326,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingTaskId", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
 
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testAddCandidateGroupNullTaskId() {
         try {
             taskService.addCandidateGroup(null, "groupId");
@@ -932,6 +1342,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddCandidateGroupNullGroupId() {
         try {
             taskService.addCandidateGroup("taskId", null);
@@ -941,6 +1352,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddCandidateGroupUnexistingTask() {
         Group group = identityService.newGroup("group");
         identityService.saveGroup(group);
@@ -949,11 +1361,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingTaskId", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
         identityService.deleteGroup(group.getId());
     }
 
+    @Test
     public void testAddGroupIdentityLinkNullTaskId() {
         try {
             taskService.addGroupIdentityLink(null, "groupId", IdentityLinkType.CANDIDATE);
@@ -963,6 +1376,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddGroupIdentityLinkNullUserId() {
         try {
             taskService.addGroupIdentityLink("taskId", null, IdentityLinkType.CANDIDATE);
@@ -972,6 +1386,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddGroupIdentityLinkUnexistingTask() {
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -981,12 +1396,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingTaskId", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
 
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testAddUserIdentityLinkNullTaskId() {
         try {
             taskService.addUserIdentityLink(null, "userId", IdentityLinkType.CANDIDATE);
@@ -996,6 +1412,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddUserIdentityLinkNullUserId() {
         try {
             taskService.addUserIdentityLink("taskId", null, IdentityLinkType.CANDIDATE);
@@ -1005,6 +1422,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testAddUserIdentityLinkUnexistingTask() {
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -1014,14 +1432,15 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingTaskId", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
 
         identityService.deleteUser(user.getId());
     }
 
+    @Test
     public void testGetIdentityLinksWithCandidateUser() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         String taskId = task.getId();
 
@@ -1039,8 +1458,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser("kermit");
     }
 
+    @Test
     public void testGetIdentityLinksWithCandidateGroup() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         String taskId = task.getId();
 
@@ -1058,8 +1478,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         identityService.deleteGroup("muppets");
     }
 
+    @Test
     public void testGetIdentityLinksWithAssignee() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         String taskId = task.getId();
 
@@ -1077,8 +1498,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser("kermit");
     }
 
+    @Test
     public void testGetIdentityLinksWithNonExistingAssignee() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         String taskId = task.getId();
 
@@ -1093,8 +1515,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(taskId, true);
     }
 
+    @Test
     public void testGetIdentityLinksWithOwner() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         String taskId = task.getId();
 
@@ -1123,8 +1546,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         identityService.deleteUser("fozzie");
     }
 
+    @Test
     public void testGetIdentityLinksWithNonExistingOwner() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         String taskId = task.getId();
 
@@ -1147,8 +1571,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(taskId, true);
     }
 
+    @Test
     public void testSetPriority() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
 
         taskService.setPriority(task.getId(), 12345);
@@ -1160,16 +1585,18 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     public void testSetPriorityUnexistingTaskId() {
         try {
             taskService.setPriority("unexistingtask", 12345);
             fail("ActivitiException expected");
         } catch (FlowableObjectNotFoundException ae) {
             assertTextPresent("Cannot find task with id unexistingtask", ae.getMessage());
-            assertEquals(org.flowable.task.service.Task.class, ae.getObjectClass());
+            assertEquals(org.flowable.task.api.Task.class, ae.getObjectClass());
         }
     }
 
+    @Test
     public void testSetPriorityNullTaskId() {
         try {
             taskService.setPriority(null, 12345);
@@ -1179,12 +1606,14 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testSetDueDate() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
 
         // Set the due date to a non-null value
-        Date now = new Date();
+        // We need to make sure the time ends on .000, .003 or .007 due to SQL Server rounding to that
+        Date now = Date.from(Instant.now().truncatedTo(ChronoUnit.SECONDS).plusMillis(843));
         taskService.setDueDate(task.getId(), now);
 
         // Fetch task to check if the due date was persisted
@@ -1198,9 +1627,19 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         task = taskService.createTaskQuery().taskId(task.getId()).singleResult();
         assertNull(task.getDueDate());
 
+        // Call saveTask to update due date
+        task = taskService.createTaskQuery().taskId(task.getId()).includeIdentityLinks().singleResult();
+        // We need to make sure the time ends on .000, .003 or .007 due to SQL Server rounding to that
+        now = Date.from(Instant.now().truncatedTo(ChronoUnit.SECONDS).plusMillis(987));
+        task.setDueDate(now);
+        taskService.saveTask(task);
+        task = taskService.createTaskQuery().taskId(task.getId()).singleResult();
+        assertEquals(now, task.getDueDate());
+
         taskService.deleteTask(task.getId(), true);
     }
 
+    @Test
     public void testSetDueDateUnexistingTaskId() {
         try {
             taskService.setDueDate("unexistingtask", new Date());
@@ -1210,6 +1649,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testSetDueDateNullTaskId() {
         try {
             taskService.setDueDate(null, new Date());
@@ -1222,8 +1662,9 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
     /**
      * @see <a href="https://activiti.atlassian.net/browse/ACT-1059">https://activiti.atlassian.net/browse/ACT-1059</a>
      */
+    @Test
     public void testSetDelegationState() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setOwner("wuzh");
         taskService.saveTask(task);
         taskService.delegateTask(task.getId(), "other");
@@ -1246,7 +1687,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
     }
 
     private void checkHistoricVariableUpdateEntity(String variableName, String processInstanceId) {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.FULL, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.FULL, processEngineConfiguration)) {
             boolean deletedVariableUpdateFound = false;
 
             List<HistoricDetail> resultSet = historyService.createHistoricDetailQuery().processInstanceId(processInstanceId).list();
@@ -1269,11 +1710,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testRemoveVariable() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         taskService.setVariable(currentTask.getId(), "variable1", "value1");
         assertEquals("value1", taskService.getVariable(currentTask.getId(), "variable1"));
@@ -1286,6 +1728,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         checkHistoricVariableUpdateEntity("variable1", processInstance.getId());
     }
 
+    @Test
     public void testRemoveVariableNullTaskId() {
         try {
             taskService.removeVariable(null, "variable");
@@ -1295,11 +1738,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testRemoveVariables() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         Map<String, Object> varsToDelete = new HashMap<>();
         varsToDelete.put("variable1", "value1");
@@ -1329,6 +1773,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
     }
 
     @SuppressWarnings("unchecked")
+    @Test
     public void testRemoveVariablesNullTaskId() {
         try {
             taskService.removeVariables(null, Collections.EMPTY_LIST);
@@ -1338,11 +1783,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testRemoveVariableLocal() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         taskService.setVariableLocal(currentTask.getId(), "variable1", "value1");
         assertEquals("value1", taskService.getVariable(currentTask.getId(), "variable1"));
@@ -1356,6 +1802,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         checkHistoricVariableUpdateEntity("variable1", processInstance.getId());
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testCountingTaskForAddRemoveVariable() {
         processEngineConfiguration.setEnableTaskRelationshipCounts(true);
@@ -1363,7 +1810,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskServiceConfiguration.setEnableTaskRelationshipCounts(true);
         
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         assertEquals(0, ((CountingTaskEntity) currentTask).getVariableCount());
 
@@ -1409,6 +1856,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskServiceConfiguration.setEnableTaskRelationshipCounts(false);
     }
 
+    @Test
     public void testRemoveVariableLocalNullTaskId() {
         try {
             taskService.removeVariableLocal(null, "variable");
@@ -1418,11 +1866,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testRemoveVariablesLocal() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         Map<String, Object> varsToDelete = new HashMap<>();
         varsToDelete.put("variable1", "value1");
@@ -1452,6 +1901,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
     }
 
     @SuppressWarnings("unchecked")
+    @Test
     public void testRemoveVariablesLocalNullTaskId() {
         try {
             taskService.removeVariablesLocal(null, Collections.EMPTY_LIST);
@@ -1461,18 +1911,19 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testGetVariableByHistoricActivityInstance() throws Exception {
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.FULL, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.FULL, processEngineConfiguration)) {
             ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
             assertNotNull(processInstance);
-            org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+            org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
 
             taskService.setVariable(task.getId(), "variable1", "value1");
             Thread.sleep(50L); // to make sure the times for ordering below are different.
             taskService.setVariable(task.getId(), "variable1", "value2");
             
-            waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+            waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
             HistoricActivityInstance historicActivitiInstance = historyService.createHistoricActivityInstanceQuery()
                     .processInstanceId(processInstance.getId())
@@ -1504,12 +1955,57 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
+    @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
+    public void testGetVariableByActivityInstance() throws Exception {
+        if (isHistoryLevelAtLeast(HistoryLevel.FULL, processEngineConfiguration)) {
+            ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
+            assertNotNull(processInstance);
+            org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
+
+            taskService.setVariable(task.getId(), "variable1", "value1");
+            Thread.sleep(50L); // to make sure the times for ordering below are different.
+            taskService.setVariable(task.getId(), "variable1", "value2");
+
+            waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
+
+            ActivityInstance activityInstance = runtimeService.createActivityInstanceQuery()
+                    .processInstanceId(processInstance.getId())
+                    .activityId("theTask").singleResult();
+            assertNotNull(activityInstance);
+
+            List<HistoricDetail> resultSet = historyService.createHistoricDetailQuery().variableUpdates()
+                    .orderByTime()
+                    .asc()
+                    .list();
+
+            assertEquals(2, resultSet.size());
+            assertEquals("variable1", ((HistoricVariableUpdate) resultSet.get(0)).getVariableName());
+            assertEquals("value1", ((HistoricVariableUpdate) resultSet.get(0)).getValue());
+            assertEquals("variable1", ((HistoricVariableUpdate) resultSet.get(1)).getVariableName());
+            assertEquals("value2", ((HistoricVariableUpdate) resultSet.get(1)).getValue());
+
+            resultSet = historyService.createHistoricDetailQuery().variableUpdates()
+                    .activityInstanceId(activityInstance.getId())
+                    .orderByTime()
+                    .asc()
+                    .list();
+
+            assertEquals(2, resultSet.size());
+            assertEquals("variable1", ((HistoricVariableUpdate) resultSet.get(0)).getVariableName());
+            assertEquals("value1", ((HistoricVariableUpdate) resultSet.get(0)).getValue());
+            assertEquals("variable1", ((HistoricVariableUpdate) resultSet.get(1)).getVariableName());
+            assertEquals("value2", ((HistoricVariableUpdate) resultSet.get(1)).getValue());
+        }
+    }
+
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testUserTaskOptimisticLocking() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task task1 = taskService.createTaskQuery().singleResult();
-        org.flowable.task.service.Task task2 = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task1 = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task2 = taskService.createTaskQuery().singleResult();
 
         task1.setDescription("test description one");
         taskService.saveTask(task1);
@@ -1524,12 +2020,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testDeleteTaskWithDeleteReason() {
         // ACT-900: deleteReason can be manually specified - can only be
         // validated when historyLevel > ACTIVITY
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
 
-            org.flowable.task.service.Task task = taskService.newTask();
+            org.flowable.task.api.Task task = taskService.newTask();
             task.setName("test task");
             taskService.saveTask(task);
 
@@ -1537,7 +2034,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
 
             taskService.deleteTask(task.getId(), "deleted for testing purposes");
             
-            waitForHistoryJobExecutorToProcessAllJobs(5000, 100);
+            waitForHistoryJobExecutorToProcessAllJobs(7000, 100);
 
             HistoricTaskInstance historicTaskInstance = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).singleResult();
 
@@ -1551,6 +2048,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testResolveTaskNullTaskId() {
         try {
             taskService.resolveTask(null);
@@ -1560,6 +2058,7 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testResolveTaskUnexistingTaskId() {
         try {
             taskService.resolveTask("blergh");
@@ -1569,15 +2068,16 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     public void testResolveTaskWithParametersNullParameters() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setDelegationState(DelegationState.PENDING);
         taskService.saveTask(task);
 
         String taskId = task.getId();
         taskService.resolveTask(taskId, null);
 
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
             historyService.deleteHistoricTaskInstance(taskId);
         }
 
@@ -1589,15 +2089,16 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
     }
 
     @SuppressWarnings("unchecked")
+    @Test
     public void testResolveTaskWithParametersEmptyParameters() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         task.setDelegationState(DelegationState.PENDING);
         taskService.saveTask(task);
 
         String taskId = task.getId();
         taskService.resolveTask(taskId, Collections.EMPTY_MAP);
 
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
             historyService.deleteHistoricTaskInstance(taskId);
         }
 
@@ -1608,12 +2109,13 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         taskService.deleteTask(taskId, true);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/twoTasksProcess.bpmn20.xml" })
     public void testResolveWithParametersTask() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("twoTasksProcess");
 
         // Fetch first task
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("First task", task.getName());
 
         taskService.delegateTask(task.getId(), "johndoe");
@@ -1633,10 +2135,11 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertEquals("myValue", variables.get("myParam"));
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testDeleteTaskPartOfProcess() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertNotNull(task);
 
         try {
@@ -1677,11 +2180,12 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
 
     }
 
+    @Test
     @Deployment
     public void testFormKeyExpression() {
         runtimeService.startProcessInstanceByKey("testFormExpression", CollectionUtil.singletonMap("var", "abc"));
 
-        org.flowable.task.service.Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals("first-form.json", task.getFormKey());
         taskService.complete(task.getId());
 
@@ -1693,17 +2197,18 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         task = taskService.createTaskQuery().singleResult();
         assertEquals("form-changed.json", task.getFormKey());
 
-        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
+        if (isHistoryLevelAtLeast(HistoryLevel.AUDIT, processEngineConfiguration)) {
             HistoricTaskInstance historicTaskInstance = historyService.createHistoricTaskInstanceQuery().taskId(task.getId()).singleResult();
             assertEquals("form-changed.json", historicTaskInstance.getFormKey());
         }
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testGetVariableLocalWithCast() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         taskService.setVariableLocal(currentTask.getId(), "variable1", "value1");
 
@@ -1712,37 +2217,37 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertEquals("value1", variable);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testGetVariableLocalNotExistingWithCast() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         String variable = taskService.getVariableLocal(currentTask.getId(), "variable1", String.class);
 
         assertNull(variable);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testGetVariableLocalWithInvalidCast() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         taskService.setVariableLocal(currentTask.getId(), "variable1", "value1");
 
-        catchException(taskService).getVariableLocal(currentTask.getId(), "variable1", Boolean.class);
-
-        Exception e = caughtException();
-        assertNotNull(e);
-        assertTrue(e instanceof ClassCastException);
+        assertThatThrownBy(() -> taskService.getVariableLocal(currentTask.getId(), "variable1", Boolean.class))
+            .isExactlyInstanceOf(ClassCastException.class);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testGetVariableWithCast() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         taskService.setVariable(currentTask.getId(), "variable1", "value1");
 
@@ -1751,34 +2256,34 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
         assertEquals("value1", variable);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testGetVariableNotExistingWithCast() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         String variable = taskService.getVariable(currentTask.getId(), "variable1", String.class);
 
         assertNull(variable);
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/api/oneTaskProcess.bpmn20.xml" })
     public void testGetVariableWithInvalidCast() {
         runtimeService.startProcessInstanceByKey("oneTaskProcess");
 
-        org.flowable.task.service.Task currentTask = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task currentTask = taskService.createTaskQuery().singleResult();
 
         taskService.setVariable(currentTask.getId(), "variable1", "value1");
 
-        catchException(taskService).getVariable(currentTask.getId(), "variable1", Boolean.class);
-
-        Exception e = caughtException();
-        assertNotNull(e);
-        assertTrue(e instanceof ClassCastException);
+        assertThatThrownBy(() -> taskService.getVariable(currentTask.getId(), "variable1", Boolean.class))
+            .isExactlyInstanceOf(ClassCastException.class);
     }
 
+    @Test
     public void testClaimTime() {
-        org.flowable.task.service.Task task = taskService.newTask();
+        org.flowable.task.api.Task task = taskService.newTask();
         taskService.saveTask(task);
         User user = identityService.newUser("user");
         identityService.saveUser(user);
@@ -1799,6 +2304,20 @@ public class TaskServiceTest extends PluggableFlowableTestCase {
 
         taskService.deleteTask(task.getId(), true);
         identityService.deleteUser(user.getId());
+    }
+
+    private static Set<IdentityLinkEntityImpl> getDefaultIdentityLinks() {
+        IdentityLinkEntityImpl identityLinkEntityCandidateUser = new IdentityLinkEntityImpl();
+        identityLinkEntityCandidateUser.setUserId("testUserBuilder");
+        identityLinkEntityCandidateUser.setType(IdentityLinkType.CANDIDATE);
+        IdentityLinkEntityImpl identityLinkEntityCandidateGroup = new IdentityLinkEntityImpl();
+        identityLinkEntityCandidateGroup.setGroupId("testGroupBuilder");
+        identityLinkEntityCandidateGroup.setType(IdentityLinkType.CANDIDATE);
+
+        return Stream.of(
+                identityLinkEntityCandidateUser,
+                identityLinkEntityCandidateGroup
+        ).collect(toSet());
     }
 
 }

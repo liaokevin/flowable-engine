@@ -14,9 +14,8 @@ package org.flowable.job.service.impl.persistence.entity;
 
 import java.util.List;
 
-import org.flowable.engine.common.impl.Page;
-import org.flowable.engine.common.impl.persistence.entity.EntityManager;
-import org.flowable.job.service.Job;
+import org.flowable.common.engine.impl.persistence.entity.EntityManager;
+import org.flowable.job.api.Job;
 import org.flowable.job.service.impl.JobQueryImpl;
 import org.flowable.job.service.impl.SuspendedJobQueryImpl;
 
@@ -41,7 +40,7 @@ public interface SuspendedJobEntityManager extends EntityManager<SuspendedJobEnt
     List<Job> findJobsByQueryCriteria(SuspendedJobQueryImpl jobQuery);
 
     /**
-     * Same as {@link #findJobsByQueryCriteria(SuspendedJobQueryImpl, Page)}, but only returns a count and not the instances itself.
+     * Same as {@link #findJobsByQueryCriteria(SuspendedJobQueryImpl)}, but only returns a count and not the instances itself.
      */
     long findJobCountByQueryCriteria(SuspendedJobQueryImpl jobQuery);
 
@@ -49,5 +48,5 @@ public interface SuspendedJobEntityManager extends EntityManager<SuspendedJobEnt
      * Changes the tenantId for all jobs related to a given {@link DeploymentEntity}.
      */
     void updateJobTenantIdForDeployment(String deploymentId, String newTenantId);
-
+    
 }

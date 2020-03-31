@@ -13,11 +13,12 @@
 
 package org.flowable.spring.test.expression;
 
-import org.flowable.engine.common.api.FlowableException;
+import org.flowable.common.engine.api.FlowableException;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
 import org.flowable.spring.impl.test.SpringFlowableTestCase;
-import org.flowable.task.service.Task;
+import org.flowable.task.api.Task;
+import org.junit.jupiter.api.Test;
 import org.springframework.test.context.ContextConfiguration;
 
 /**
@@ -28,20 +29,18 @@ import org.springframework.test.context.ContextConfiguration;
 @ContextConfiguration("classpath:org/flowable/spring/test/expression/expressionLimitedBeans-context.xml")
 public class SpringLimitedExpressionsTest extends SpringFlowableTestCase {
 
+    @Test
     @Deployment
     public void testLimitedBeansExposed() throws Exception {
-        // Start process, which has a service-task which calls 'bean1', which is
-        // exposed
+        // Start process, which has a service-task which calls 'bean1', which is exposed
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("limitedExpressionProcess");
 
         String beanOutput = (String) runtimeService.getVariable(processInstance.getId(), "beanOutput");
         assertNotNull(beanOutput);
         assertEquals("Activiti BPMN 2.0 process engine", beanOutput);
 
-        // Finish the task, should continue to serviceTask which uses a bean
-        // that is present
-        // in application-context, but not exposed explicitly in "beans", should
-        // throw error!
+        // Finish the task, should continue to serviceTask which uses a bean that is present
+        // in application-context, but not exposed explicitly in "beans", should throw error!
         Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertNotNull(task);
 

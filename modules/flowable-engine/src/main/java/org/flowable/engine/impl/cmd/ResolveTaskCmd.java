@@ -15,9 +15,9 @@ package org.flowable.engine.impl.cmd;
 
 import java.util.Map;
 
-import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.util.TaskHelper;
-import org.flowable.task.service.DelegationState;
+import org.flowable.task.api.DelegationState;
 import org.flowable.task.service.impl.persistence.entity.TaskEntity;
 
 /**
@@ -41,6 +41,7 @@ public class ResolveTaskCmd extends NeedsActiveTaskCmd<Void> {
         this.transientVariables = transientVariables;
     }
 
+    @Override
     protected Void execute(CommandContext commandContext, TaskEntity task) {
         if (variables != null) {
             task.setVariables(variables);

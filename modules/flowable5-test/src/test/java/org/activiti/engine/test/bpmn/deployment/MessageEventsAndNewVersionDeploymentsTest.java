@@ -17,10 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.impl.history.HistoryLevel;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.repository.DeploymentProperties;
-import org.flowable.engine.runtime.EventSubscription;
 import org.flowable.engine.runtime.ProcessInstance;
+import org.flowable.eventsubscription.api.EventSubscription;
 
 /**
  * A test specifically written to test how events (start/boundary) are handled when deploying a new version of a process definition.
@@ -54,10 +54,10 @@ public class MessageEventsAndNewVersionDeploymentsTest extends PluggableFlowable
 
         assertReceiveMessage("myMessage", 2);
 
-        List<org.flowable.task.service.Task> tasks = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().list();
         assertEquals(2, tasks.size());
 
-        for (org.flowable.task.service.Task task : tasks) {
+        for (org.flowable.task.api.Task task : tasks) {
             assertEquals("Task after message", task.getName());
         }
 

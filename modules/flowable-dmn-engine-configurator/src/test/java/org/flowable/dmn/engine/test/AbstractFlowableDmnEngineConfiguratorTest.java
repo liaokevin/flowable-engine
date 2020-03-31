@@ -12,8 +12,11 @@
  */
 package org.flowable.dmn.engine.test;
 
+import org.flowable.engine.HistoryService;
 import org.flowable.engine.ProcessEngine;
+import org.flowable.engine.ProcessEngineConfiguration;
 import org.flowable.engine.RepositoryService;
+import org.flowable.engine.RuntimeService;
 import org.flowable.engine.test.FlowableRule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -29,7 +32,10 @@ public class AbstractFlowableDmnEngineConfiguratorTest {
     public FlowableRule flowableRule = new FlowableRule();
 
     protected static ProcessEngine cachedProcessEngine;
+    protected ProcessEngineConfiguration processEngineConfiguration;
     protected RepositoryService repositoryService;
+    protected RuntimeService runtimeService;
+    protected HistoryService historyService;
 
     @Before
     public void initProcessEngine() {
@@ -37,7 +43,10 @@ public class AbstractFlowableDmnEngineConfiguratorTest {
             cachedProcessEngine = flowableRule.getProcessEngine();
         }
 
+        this.processEngineConfiguration = cachedProcessEngine.getProcessEngineConfiguration();
         this.repositoryService = cachedProcessEngine.getRepositoryService();
+        this.runtimeService = cachedProcessEngine.getRuntimeService();
+        this.historyService = cachedProcessEngine.getHistoryService();
     }
 
 }
