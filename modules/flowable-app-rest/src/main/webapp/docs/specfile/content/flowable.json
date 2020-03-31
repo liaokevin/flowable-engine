@@ -1,0 +1,730 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "description" : "# flowable / flow…ôb(…ô)l /\r\n\r\n- a compact and highly efficient workflow and Business Process Management (BPM) platform for developers, system admins and business users.\r\n- a lightning fast, tried and tested BPMN 2 process engine written in Java. It is Apache 2.0 licensed open source, with a committed community.\r\n- can run embedded in a Java application, or as a service on a server, a cluster, and in the cloud. It integrates perfectly with Spring. With a rich Java and REST API, it is the ideal engine for orchestrating human or system activities.",
+    "version" : "v1",
+    "title" : "Flowable CONTENT REST API",
+    "contact" : {
+      "name" : "Flowable",
+      "url" : "http://www.flowable.org/"
+    },
+    "license" : {
+      "name" : "Apache 2.0",
+      "url" : "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "host" : "localhost:8080",
+  "basePath" : "/flowable-rest/content-api",
+  "tags" : [ {
+    "name" : "Content item"
+  }, {
+    "name" : "Engine"
+  } ],
+  "schemes" : [ "http", "https" ],
+  "paths" : {
+    "/content-management/engine" : {
+      "get" : {
+        "tags" : [ "Engine" ],
+        "summary" : "Get Content engine info",
+        "description" : "",
+        "operationId" : "getEngineInfo",
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "Indicates the engine info is returned.",
+            "schema" : {
+              "$ref" : "#/definitions/ContentEngineInfoResponse"
+            }
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      }
+    },
+    "/content-service/content-items" : {
+      "get" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Get all content items",
+        "description" : "",
+        "operationId" : "getContentItems",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "query",
+          "description" : "Only return content items with the given id.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "name",
+          "in" : "query",
+          "description" : "Only return content items with the given name.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "nameLike",
+          "in" : "query",
+          "description" : "Only return content items with a name like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "mimeType",
+          "in" : "query",
+          "description" : "Only return content items with the given mime type.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "mimeTypeLike",
+          "in" : "query",
+          "description" : "Only return content items with a mime type like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "taskId",
+          "in" : "query",
+          "description" : "Only return content items with the given task id.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "taskIdLike",
+          "in" : "query",
+          "description" : "Only return content items with a task like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "processInstanceId",
+          "in" : "query",
+          "description" : "Only return content items with the given process instance id.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "processInstanceIdLike",
+          "in" : "query",
+          "description" : "Only return content items with a process instance like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "contentStoreId",
+          "in" : "query",
+          "description" : "Only return content items with the given content store id.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "contentStoreIdLike",
+          "in" : "query",
+          "description" : "Only return content items with a content store id like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "contentStoreName",
+          "in" : "query",
+          "description" : "Only return content items with the given content store name.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "contentStoreNameLike",
+          "in" : "query",
+          "description" : "Only return content items with a content store name like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "contentAvailable",
+          "in" : "query",
+          "description" : "Only return content items with or without content available.",
+          "required" : false,
+          "type" : "boolean"
+        }, {
+          "name" : "contentSize",
+          "in" : "query",
+          "description" : "Only return content items with the given content size.",
+          "required" : false,
+          "type" : "long"
+        }, {
+          "name" : "minimumContentSize",
+          "in" : "query",
+          "description" : "Only return content items with the a minimum content size of the given value.",
+          "required" : false,
+          "type" : "long"
+        }, {
+          "name" : "maximumContentSize",
+          "in" : "query",
+          "description" : "Only return content items with the a maximum content size of the given value.",
+          "required" : false,
+          "type" : "long"
+        }, {
+          "name" : "field",
+          "in" : "query",
+          "description" : "Only return content items with the given field.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "fieldLike",
+          "in" : "query",
+          "description" : "Only return content items with a field like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "createdOn",
+          "in" : "query",
+          "description" : "Only return content items with the given create date.",
+          "required" : false,
+          "type" : "date"
+        }, {
+          "name" : "createdBefore",
+          "in" : "query",
+          "description" : "Only return content items before given create date.",
+          "required" : false,
+          "type" : "date"
+        }, {
+          "name" : "createdAfter",
+          "in" : "query",
+          "description" : "Only return content items after given create date.",
+          "required" : false,
+          "type" : "date"
+        }, {
+          "name" : "createdBy",
+          "in" : "query",
+          "description" : "Only return content items with the given created by.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "createdByLike",
+          "in" : "query",
+          "description" : "Only return content items with a created by like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "lastModifiedOn",
+          "in" : "query",
+          "description" : "Only return content items with the given last modified date.",
+          "required" : false,
+          "type" : "date"
+        }, {
+          "name" : "lastModifiedBefore",
+          "in" : "query",
+          "description" : "Only return content items before given last modified date.",
+          "required" : false,
+          "type" : "date"
+        }, {
+          "name" : "lastModifiedAfter",
+          "in" : "query",
+          "description" : "Only return content items after given last modified date.",
+          "required" : false,
+          "type" : "date"
+        }, {
+          "name" : "lastModifiedBy",
+          "in" : "query",
+          "description" : "Only return content items with the given last modified by.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "lastModifiedByLike",
+          "in" : "query",
+          "description" : "Only return content items with a last modified by like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "tenantId",
+          "in" : "query",
+          "description" : "Only return content items with the given tenantId.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "tenantIdLike",
+          "in" : "query",
+          "description" : "Only return content items with a tenantId like the given value.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "withoutTenantId",
+          "in" : "query",
+          "description" : "If true, only returns content items without a tenantId set. If false, the withoutTenantId parameter is ignored.",
+          "required" : false,
+          "type" : "boolean"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The content items are returned.",
+            "schema" : {
+              "$ref" : "#/definitions/DataResponse"
+            }
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Create a new content item, with content item information and an optional attached file",
+        "description" : "## Create a new content item, with content item information\n\n ```JSON\n{\n  \"name\":\"Simple content item\",\n  \"mimeType\":\"application/pdf\",\n  \"taskId\":\"12345\",\n  \"processInstanceId\":\"1234\"\n  \"contentStoreId\":\"5678\",\n  \"contentStoreName\":\"myFileStore\"\n  \"field\":\"uploadField\",\n  \"createdBy\":\"johndoe\"\n  \"lastModifiedBy\":\"johndoe\",\n  \"tenantId\":\"myTenantId\"\n} ```\n\n\nOnly the content item name is required to create a new content item.\n\n\n\n## Create a new content item with an attached file\n\nThe request should be of type multipart/form-data. There should be a single file-part included with the binary value of the variable. On top of that, the following additional form-fields can be present:\n\n- *name*: Required name of the content item.\n\n- *mimeType*: Mime type of the content item, optional.\n\n- *taskId*: Task identifier for the content item, optional.\n\n- *processInstanceId*: Process instance identifier for the content item, optional.\n\n- *contentStoreId*: The identifier of the content item in an external content store, optional.\n\n- *contentStoreName*: The name of an external content store, optional.\n\n- *field*: The form field for the content item, optional.\n\n- *createdBy*: The user identifier that created the content item, optional.\n\n- *lastModifiedBy*: The user identifier that last modified the content item, optional.\n\n- *tenantId*: The tenant identifier of the content item, optional.",
+        "operationId" : "createContentItem",
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/ContentItemResponse"
+            }
+          },
+          "201" : {
+            "description" : "Indicates the content item was created and the result is returned."
+          },
+          "400" : {
+            "description" : "Indicates required content item info is missing from the request."
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      }
+    },
+    "/content-service/content-items/{contentItemId}" : {
+      "get" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Get a content item",
+        "description" : "",
+        "operationId" : "getContentItem",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "contentItemId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Indicates the content item was found and returned.",
+            "schema" : {
+              "$ref" : "#/definitions/ContentItemResponse"
+            }
+          },
+          "404" : {
+            "description" : "Indicates the requested content item was not found."
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Updates a content item, with the provided content item information",
+        "description" : "## Updates a content item, with the provided content item information\n\n ```JSON\n{\n  \"name\":\"Simple content item\",\n  \"mimeType\":\"application/pdf\",\n  \"taskId\":\"12345\",\n  \"processInstanceId\":\"1234\"\n  \"contentStoreId\":\"5678\",\n  \"contentStoreName\":\"myFileStore\"\n  \"field\":\"uploadField\",\n  \"createdBy\":\"johndoe\"\n  \"lastModifiedBy\":\"johndoe\",\n  \"tenantId\":\"myTenantId\"\n} ```\n\n- *name*: Name of the content item.\n\n- *mimeType*: Mime type of the content item, optional.\n\n- *taskId*: Task identifier for the content item, optional.\n\n- *processInstanceId*: Process instance identifier for the content item, optional.\n\n- *contentStoreId*: The identifier of the content item in an external content store, optional.\n\n- *contentStoreName*: The name of an external content store, optional.\n\n- *field*: The form field for the content item, optional.\n\n- *createdBy*: The user identifier that created the content item, optional.\n\n- *lastModifiedBy*: The user identifier that last modified the content item, optional.\n\n- *tenantId*: The tenant identifier of the content item, optional.",
+        "operationId" : "updateContentItem",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "in" : "body",
+          "name" : "body",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/ContentItemRequest"
+          }
+        }, {
+          "name" : "contentItemId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Indicates the content item was updated and the result is returned.",
+            "schema" : {
+              "$ref" : "#/definitions/ContentItemResponse"
+            }
+          },
+          "404" : {
+            "description" : "Indicates content item could not be found."
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Delete a content item",
+        "description" : "",
+        "operationId" : "deleteContentItem",
+        "parameters" : [ {
+          "name" : "contentItemId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Indicates the content item was deleted."
+          },
+          "404" : {
+            "description" : "Indicates the content item was not found."
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      }
+    },
+    "/content-service/content-items/{contentItemId}/data" : {
+      "get" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Get the data of a content item",
+        "description" : "The response body contains the binary content. By default, the content-type of the response is set to application/octet-stream unless the content item type contains a valid mime type.",
+        "operationId" : "getContentItemData",
+        "parameters" : [ {
+          "name" : "contentItemId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Indicates the content item was found and the requested content is returned.",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            }
+          },
+          "404" : {
+            "description" : "Indicates the content item was not found or the content item doesn°Øt have a binary stream available. Status message provides additional information."
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Save the content item data",
+        "description" : "## Save the content item data with an attached file\n\nThe request should be of type multipart/form-data. There should be a single file-part included with the binary value of the content item.",
+        "operationId" : "saveContentItemData",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "contentItemId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/ContentItemResponse"
+            }
+          },
+          "201" : {
+            "description" : "Indicates the content item data was saved and the result is returned."
+          },
+          "400" : {
+            "description" : "Indicates required content item data is missing from the request."
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      }
+    },
+    "/query/content-items" : {
+      "post" : {
+        "tags" : [ "Content item" ],
+        "summary" : "Query for content items",
+        "description" : "All supported JSON parameter fields allowed are exactly the same as the parameters found for getting a collection of content items, but passed in as JSON-body arguments rather than URL-parameters to allow for more advanced querying and preventing errors with request-uri°Øs that are too long.",
+        "operationId" : "getQueryResult",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "in" : "body",
+          "name" : "body",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/ContentItemQueryRequest"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Indicates request was successful and the content items are returned.",
+            "schema" : {
+              "$ref" : "#/definitions/DataResponse"
+            }
+          },
+          "400" : {
+            "description" : "Indicates a parameter was passed in the wrong format. The status-message contains additional information."
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      }
+    }
+  },
+  "securityDefinitions" : {
+    "basicAuth" : {
+      "type" : "basic"
+    }
+  },
+  "definitions" : {
+    "ContentEngineInfoResponse" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "resourceUrl" : {
+          "type" : "string"
+        },
+        "exception" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : "string"
+        }
+      }
+    },
+    "ContentItemQueryRequest" : {
+      "type" : "object",
+      "properties" : {
+        "start" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "size" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "sort" : {
+          "type" : "string"
+        },
+        "order" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "ids" : {
+          "type" : "array",
+          "uniqueItems" : true,
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "nameLike" : {
+          "type" : "string"
+        },
+        "mimeType" : {
+          "type" : "string"
+        },
+        "mimeTypeLike" : {
+          "type" : "string"
+        },
+        "taskId" : {
+          "type" : "string"
+        },
+        "taskIdLike" : {
+          "type" : "string"
+        },
+        "processInstanceId" : {
+          "type" : "string"
+        },
+        "processInstanceIdLike" : {
+          "type" : "string"
+        },
+        "contentStoreId" : {
+          "type" : "string"
+        },
+        "contentStoreIdLike" : {
+          "type" : "string"
+        },
+        "contentStoreName" : {
+          "type" : "string"
+        },
+        "contentStoreNameLike" : {
+          "type" : "string"
+        },
+        "contentSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "minimumContentSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "maximumContentSize" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "contentAvailable" : {
+          "type" : "boolean",
+          "default" : false
+        },
+        "field" : {
+          "type" : "string"
+        },
+        "fieldLike" : {
+          "type" : "string"
+        },
+        "createdOn" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "createdBefore" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "createdAfter" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "createdBy" : {
+          "type" : "string"
+        },
+        "createdByLike" : {
+          "type" : "string"
+        },
+        "lastModifiedOn" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "lastModifiedBefore" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "lastModifiedAfter" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "lastModifiedBy" : {
+          "type" : "string"
+        },
+        "lastModifiedByLike" : {
+          "type" : "string"
+        },
+        "tenantId" : {
+          "type" : "string"
+        },
+        "tenantIdLike" : {
+          "type" : "string"
+        },
+        "withoutTenantId" : {
+          "type" : "boolean",
+          "default" : false
+        }
+      }
+    },
+    "ContentItemRequest" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "mimeType" : {
+          "type" : "string"
+        },
+        "taskId" : {
+          "type" : "string"
+        },
+        "processInstanceId" : {
+          "type" : "string"
+        },
+        "contentStoreId" : {
+          "type" : "string"
+        },
+        "contentStoreName" : {
+          "type" : "string"
+        },
+        "field" : {
+          "type" : "string"
+        },
+        "tenantId" : {
+          "type" : "string"
+        },
+        "createdBy" : {
+          "type" : "string"
+        },
+        "lastModifiedBy" : {
+          "type" : "string"
+        }
+      }
+    },
+    "ContentItemResponse" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "mimeType" : {
+          "type" : "string"
+        },
+        "taskId" : {
+          "type" : "string"
+        },
+        "processInstanceId" : {
+          "type" : "string"
+        },
+        "contentStoreId" : {
+          "type" : "string"
+        },
+        "contentStoreName" : {
+          "type" : "string"
+        },
+        "contentAvailable" : {
+          "type" : "boolean",
+          "default" : false
+        },
+        "tenantId" : {
+          "type" : "string"
+        },
+        "created" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "createdBy" : {
+          "type" : "string"
+        },
+        "lastModified" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "lastModifiedBy" : {
+          "type" : "string"
+        },
+        "url" : {
+          "type" : "string"
+        }
+      }
+    },
+    "DataResponse" : {
+      "type" : "object",
+      "properties" : {
+        "data" : {
+          "type" : "object"
+        },
+        "total" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "start" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "sort" : {
+          "type" : "string"
+        },
+        "order" : {
+          "type" : "string"
+        },
+        "size" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
+    }
+  }
+}
